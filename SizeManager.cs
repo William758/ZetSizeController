@@ -1,0 +1,905 @@
+﻿using EntityStates;
+using Mono.Cecil.Cil;
+using MonoMod.Cil;
+using RoR2;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Networking;
+
+namespace TPDespair.ZetSizeController
+{
+	public enum SizeClass
+	{
+		None,
+		Player,
+		Lesser,
+		Greater,
+		Champion
+	}
+
+
+
+	public class SizeData : MonoBehaviour
+	{
+		public NetworkInstanceId netId;
+		public SizeClass sizeClass = SizeClass.None;
+
+		public float heightVerticalOffset = 0f;
+		public float interactionRange = 1f;
+		public float playbackSpeed = 1f;
+
+		public Vector3 size;
+		public float height = 0f;
+		/*
+		public float extFinalMult = 1f;
+		public float extMult = 1f;
+		public float extIncrease = 0f;
+		*/
+		public float scale = 1f;
+		public float target = 1f;
+		public float instant = 0f;
+
+		public bool ready = false;
+	}
+
+
+
+	public static class SizeManager
+	{
+		private static readonly List<string> LesserBodyNames = new List<string> { "BackupDroneBody", "BeetleBody", "BeetleCrystalBody", "ClayBody", "Drone1Body", "Drone2Body", "EmergencyDroneBody", "EquipmentDroneBody", "FlameDroneBody", "FlyingVerminBody", "GipBody", "HermitCrabBody", "ImpBody", "JellyfishBody", "LemurianBody", "LunarExploderBody", "MiniMushroomBody", "MinorConstructAttachableBody", "MinorConstructBody", "MinorConstructOnKillBody", "MissileDroneBody", "MoffeinClayManBody", "SquidTurretBody", "Turret1Body", "UrchinTurretBody", "VerminBody", "VoidBarnacleBody", "VoidInfestorBody", "VultureBody", "WispBody", "WispSoulBody" };
+		private static readonly List<BodyIndex> LesserBodyIndexes = new List<BodyIndex>();
+
+		private static readonly List<string> GreaterBodyNames = new List<string> { "ArchWispBody", "BeetleGuardAllyBody", "BeetleGuardBody", "BeetleGuardCrystalBody", "BellBody", "BisonBody", "BomberBody", "ClayBruiserBody", "ClayGrenadierBody", "DroneCommanderBody", "EngiBeamTurretBody", "EngiTurretBody", "EngiWalkerTurretBody", "GeepBody", "GolemBody", "GreaterWispBody", "GupBody", "LemurianBruiserBody", "LunarGolemBody", "LunarKnightBody", "LunarWispBody", "MajorConstructBody", "MegaDroneBody", "NullifierBody", "ParentBody", "RoboBallGreenBuddyBody", "RoboBallMiniBody", "RoboBallRedBuddyBody", "ScavBody", "ShopkeeperBody", "VoidJailerBody" };
+		private static readonly List<BodyIndex> GreaterBodyIndexes = new List<BodyIndex>();
+
+		private static readonly List<string> ChampionBodyNames = new List<string> { "AncientWispBody", "BeetleQueen2Body", "BrotherBody", "BrotherGlassBody", "BrotherHurtBody", "ClayBossBody", "DireseekerBody", "ElectricWormBody", "GrandParentBody", "GravekeeperBody", "ImpBossBody", "MagmaWormBody", "MegaConstructBody", "MoffeinAncientWispBody", "RoboBallBossBody", "ScavLunar1Body", "ScavLunar2Body", "ScavLunar3Body", "ScavLunar4Body", "SuperRoboBallBossBody", "TitanBody", "TitanGoldBody", "VagrantBody", "VoidMegaCrabBody" };
+		private static readonly List<BodyIndex> ChampionBodyIndexes = new List<BodyIndex>();
+
+		private static BodyIndex BeetleBodyIndex = BodyIndex.None;
+		private static BodyIndex BeetleCrystalBodyIndex = BodyIndex.None;
+		private static BodyIndex ImpBodyIndex = BodyIndex.None;
+		private static BodyIndex LemurianBodyIndex = BodyIndex.None;
+		private static BodyIndex RexBodyIndex = BodyIndex.None;
+		private static BuffIndex ShrinkRayBuff = BuffIndex.None;
+
+		public static Action<CharacterBody, SizeData> onSizeDataCreated;
+
+
+
+		internal static void Init()
+		{
+			BodyCatalog.availability.CallWhenAvailable(PopulateBodyIndexes);
+			RoR2Application.onLoad += PopulateIndexes;
+
+			RecalculateStatsHook();
+			FixedUpdateHook();
+			OnDestroyHook();
+
+			CharacterBody.onBodyStartGlobal += RecalculateSize;
+			VehicleSeat.onPassengerExitGlobal += ResizeOnVehicleExit;
+
+			FixPrintController();
+
+			if (Configuration.ModifyCamera.Value)
+			{
+				CameraDistanceHook();
+				CameraVerticalOffsetHook();
+			}
+			if (Configuration.ModifyInteraction.Value)
+			{
+				InteractionDriverHook();
+				PickupPickerHook();
+			}
+			if (Configuration.ModifyOverlap.Value)
+			{
+				OverlapAttackPositionHook();
+				OverlapAttackScaleHook();
+			}
+			if (Configuration.ModifyAnimation.Value)
+			{
+				AnimationHook();
+			}
+		}
+
+		
+
+		private static void PopulateBodyIndexes()
+		{
+			BodyIndex bodyIndex;
+
+			foreach (string lesserName in LesserBodyNames)
+			{
+				bodyIndex = BodyCatalog.FindBodyIndex(lesserName);
+				if (bodyIndex != BodyIndex.None)
+				{
+					if (!LesserBodyIndexes.Contains(bodyIndex))
+					{
+						LesserBodyIndexes.Add(bodyIndex);
+					}
+				}
+			}
+
+			foreach (string greaterName in GreaterBodyNames)
+			{
+				bodyIndex = BodyCatalog.FindBodyIndex(greaterName);
+				if (bodyIndex != BodyIndex.None)
+				{
+					if (!GreaterBodyIndexes.Contains(bodyIndex))
+					{
+						GreaterBodyIndexes.Add(bodyIndex);
+					}
+				}
+			}
+
+			foreach (string championName in ChampionBodyNames)
+			{
+				bodyIndex = BodyCatalog.FindBodyIndex(championName);
+				if (bodyIndex != BodyIndex.None)
+				{
+					if (!ChampionBodyIndexes.Contains(bodyIndex))
+					{
+						ChampionBodyIndexes.Add(bodyIndex);
+					}
+				}
+			}
+
+			BeetleBodyIndex = BodyCatalog.FindBodyIndex("BeetleBody");
+			BeetleCrystalBodyIndex = BodyCatalog.FindBodyIndex("BeetleCrystalBody");
+			ImpBodyIndex = BodyCatalog.FindBodyIndex("ImpBody");
+			LemurianBodyIndex = BodyCatalog.FindBodyIndex("LemurianBody");
+			RexBodyIndex = BodyCatalog.FindBodyIndex("TreebotBody");
+
+			Debug.LogWarning("ZetSizeController - PopulateBodyIndexes : Lesser[" + LesserBodyIndexes.Count + "] Greater[" + GreaterBodyIndexes.Count + "] Champion[" + ChampionBodyIndexes.Count + "]");
+		}
+
+		private static void PopulateIndexes()
+		{
+			BuffIndex buffIndex = BuffCatalog.FindBuffIndex("TKSATShrink");
+			if (buffIndex != BuffIndex.None)
+			{
+				ShrinkRayBuff = buffIndex;
+				Debug.LogWarning("ZetSplitifact - ShrinkRayBuff : " + ShrinkRayBuff);
+			}
+		}
+
+
+
+		private static void RecalculateStatsHook()
+		{
+			On.RoR2.CharacterBody.RecalculateStats += (orig, self) =>
+			{
+				RecalculateSize(self);
+
+				orig(self);
+			};
+		}
+
+		private static void RecalculateSize(CharacterBody self)
+		{
+			if (self && self.masterObject)
+			{
+				bool newData = false;
+
+				SizeData sizeData = self.gameObject.GetComponent<SizeData>();
+
+				if (!sizeData)
+				{
+					if (!HasTransform(self)) return;
+					if (!RexPls(self)) return;
+
+					SizeClass sizeClass = GetSizeClass(self);
+					if (sizeClass == SizeClass.None) return;
+
+					newData = true;
+
+					sizeData = self.gameObject.AddComponent<SizeData>();
+					sizeData.netId = self.netId;
+					sizeData.size = self.modelLocator.modelTransform.localScale;
+					sizeData.height = Mathf.Abs(self.corePosition.y - self.footPosition.y) * 2f;
+					sizeData.sizeClass = sizeClass;
+
+					Action<CharacterBody, SizeData> action = onSizeDataCreated;
+					if (action != null)
+					{
+						action(self, sizeData);
+					}
+
+					sizeData.ready = true;
+
+					if (sizeClass == SizeClass.Player)
+					{
+						Debug.LogWarning("Created Player SizeData : " + sizeData.netId);
+						Debug.LogWarning("-- Height : " + sizeData.height);
+					}
+				}
+
+				// wait until onSizeDataCreated is finished
+				if (!sizeData.ready) return;
+
+				float value = GetCharacterScale(self, sizeData);
+
+				if (sizeData.target != value)
+				{
+					if (sizeData.sizeClass == SizeClass.Player)
+					{
+						Debug.LogWarning("Player Size : " + sizeData.netId + " - " + $"{sizeData.target:0.###}" + " => " + $"{value:0.###}");
+					}
+
+					sizeData.target = value;
+				}
+
+				if (newData) UpdateSize(self, true);
+			}
+		}
+
+		private static bool HasTransform(CharacterBody self)
+		{
+			return self.modelLocator && self.modelLocator.modelTransform;
+		}
+
+		private static bool RexPls(CharacterBody self)
+		{
+			if (self.bodyIndex == RexBodyIndex)
+			{
+				if (Mathf.Abs(self.modelLocator.modelTransform.localScale.x - 0.75f) >= 0.01f) return false;
+			}
+
+			return true;
+		}
+
+		private static SizeClass GetSizeClass(CharacterBody self)
+		{
+			if (self.isPlayerControlled)
+			{
+				return SizeClass.Player;
+			}
+			else
+			{
+				if (LesserBodyIndexes.Contains(self.bodyIndex))
+				{
+					return SizeClass.Lesser;
+				}
+				if (GreaterBodyIndexes.Contains(self.bodyIndex))
+				{
+					return SizeClass.Greater;
+				}
+				if (ChampionBodyIndexes.Contains(self.bodyIndex))
+				{
+					return SizeClass.Champion;
+				}
+			}
+
+			return SizeClass.None;
+		}
+
+		private static float GetCharacterScale(CharacterBody self, SizeData sizeData)
+		{
+			float classIncrease, classMultiplier, exponent, maximum, minimum;
+
+			switch (sizeData.sizeClass)
+			{
+				case SizeClass.Player:
+					{
+						classIncrease = Configuration.PlayerSizeIncrease.Value;
+						classMultiplier = Configuration.PlayerSizeMult.Value;
+						exponent = Configuration.PlayerSizeExponent.Value;
+						maximum = Configuration.PlayerSizeLimit.Value;
+						minimum = 0.5f;
+					}
+					break;
+				case SizeClass.Lesser:
+					{
+						classIncrease = Configuration.LesserSizeIncrease.Value;
+						classMultiplier = Configuration.LesserSizeMult.Value;
+						exponent = Configuration.LesserSizeExponent.Value;
+						maximum = Configuration.LesserSizeLimit.Value;
+						minimum = 0.5f;
+					}
+					break;
+				case SizeClass.Greater:
+					{
+						classIncrease = Configuration.GreaterSizeIncrease.Value;
+						classMultiplier = Configuration.GreaterSizeMult.Value;
+						exponent = Configuration.GreaterSizeExponent.Value;
+						maximum = Configuration.GreaterSizeLimit.Value;
+						minimum = 0.35f;
+					}
+					break;
+				case SizeClass.Champion:
+					{
+						classIncrease = Configuration.ChampionSizeIncrease.Value;
+						classMultiplier = Configuration.ChampionSizeMult.Value;
+						exponent = Configuration.ChampionSizeExponent.Value;
+						maximum = Configuration.ChampionSizeLimit.Value;
+						minimum = 0.25f;
+					}
+					break;
+				default:
+					{
+						return 1f;
+					}
+			}
+
+			maximum = Mathf.Min(Configuration.AbsoluteSizeLimit.Value, maximum);
+
+			int count;
+			float increase = classIncrease, multiplier = classMultiplier, finalMultiplier = 1f, modifier = Configuration.ModifierMult.Value;
+			/*
+			finalMultiplier *= sizeData.extFinalMult;
+			multiplier *= sizeData.extMult;
+			increase += sizeData.extIncrease;
+			*/
+			Inventory inventory = self.inventory;
+			if (inventory)
+			{
+				count = inventory.GetItemCount(RoR2Content.Items.Knurl);
+				if (count > 0)
+				{
+					increase += modifier * Configuration.KnurlSizeIncrease.Value * Mathf.Min(5f, Mathf.Sqrt(count));
+				}
+
+				count = 10 * self.inventory.GetItemCount(RoR2Content.Items.Pearl);
+				count += 25 * self.inventory.GetItemCount(RoR2Content.Items.ShinyPearl);
+				if (count > 0)
+				{
+					increase += modifier * Configuration.PearlSizeIncrease.Value * Mathf.Min(5f, Mathf.Sqrt(count / 10f));
+				}
+
+				count = inventory.GetItemCount(DLC1Content.Items.HalfSpeedDoubleHealth);
+				if (count > 0)
+				{
+					increase += modifier * Configuration.StoneFluxSizeIncrease.Value * Mathf.Min(5f, Mathf.Sqrt(count));
+				}
+
+				count = inventory.GetItemCount(ZetSizeControllerContent.Items.ZetSplitTracker);
+				if (count > 1)
+				{
+					finalMultiplier *= Mathf.Pow(Configuration.SplitifactMult.Value, count - 1);
+				}
+			}
+
+			if (self.isBoss)
+			{
+				increase += modifier * Configuration.BossSizeIncrease.Value;
+			}
+
+			count = self.eliteBuffCount;
+			if (count > 0)
+			{
+				increase += modifier * Configuration.EliteSizeIncrease.Value;
+				increase += modifier * Configuration.EliteCountSizeIncrease.Value * Mathf.Min(5f, Mathf.Sqrt(count));
+			}
+
+			if (self.HasBuff(RoR2Content.Buffs.TonicBuff))
+			{
+				multiplier *= Configuration.TonicSizeMult.Value;
+			}
+
+			if (self.HasBuff(ShrinkRayBuff))
+			{
+				finalMultiplier *= 0.5f;
+			}
+
+			if (increase < 0f)
+			{
+				increase = -0.01f * Util.ConvertAmplificationPercentageIntoReductionPercentage(Mathf.Abs(increase) * 100f);
+			}
+
+			float value = Mathf.Max(0.1f, multiplier * (1f + increase));
+
+			if (value > 1f)
+			{
+				value = Mathf.Pow(value, exponent);
+			}
+
+			if (ZetShrinkifact.Enabled)
+			{
+				finalMultiplier *= Configuration.ShrinkifactMult.Value;
+			}
+
+			value *= finalMultiplier;
+
+			value = Mathf.Clamp(value, minimum, Mathf.Max(minimum, maximum));
+
+			return value;
+		}
+
+
+
+		private static void FixedUpdateHook()
+		{
+			On.RoR2.CharacterBody.FixedUpdate += (orig, self) =>
+			{
+				orig(self);
+
+				UpdateSize(self, false);
+			};
+		}
+
+		private static void UpdateSize(CharacterBody self, bool instant)
+		{
+			if (self)
+			{
+				SizeData sizeData = self.gameObject.GetComponent<SizeData>();
+				if (sizeData)
+				{
+					bool update = false;
+
+					if (self.HasBuff(ShrinkRayBuff))
+					{
+						sizeData.instant = 0.1f;
+					}
+
+					if (sizeData.scale != sizeData.target)
+					{
+						update = true;
+
+						float rate = Configuration.SizeChangeRate.Value;
+
+						if (instant || sizeData.instant > 0f || rate <= 0f)
+						{
+							sizeData.scale = sizeData.target;
+
+							//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning("Player Size : " + sizeData.netId + " - " + sizeData.scale);
+						}
+						else
+						{
+							float delta = Time.fixedDeltaTime * sizeData.scale * rate;
+
+							if (sizeData.scale < sizeData.target)
+							{
+								sizeData.scale = Mathf.Min(sizeData.scale + delta, sizeData.target);
+							}
+							else
+							{
+								sizeData.scale = Mathf.Max(sizeData.scale - delta, sizeData.target);
+							}
+
+							//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning("Player Size : " + sizeData.netId + " - " + sizeData.scale + " => " + sizeData.target);
+						}
+					}
+					
+					//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning(">> Current Scale - " + self.modelLocator.modelTransform.localScale.x);
+					
+					if (update && HasTransform(self))
+					{
+						SetSize(self, sizeData);
+					}
+
+					if (sizeData.instant > 0f)
+					{
+						sizeData.instant -= Time.fixedDeltaTime;
+					}
+				}
+			}
+		}
+
+		private static void SetSize(CharacterBody body, SizeData sizeData)
+		{
+			bool isRex = body.bodyIndex == RexBodyIndex;
+
+			Vector3 size = sizeData.size;
+			float scale = sizeData.scale;
+
+			body.modelLocator.modelTransform.localScale = new Vector3(size.x * scale, size.y * scale, size.z * scale);
+
+			float vho = (sizeData.height / 2f) * (scale - 1f);
+			if (isRex) vho *= 1.75f;
+			sizeData.heightVerticalOffset = vho;
+
+			sizeData.playbackSpeed = Mathf.Clamp(1f / scale, 0.125f, 4f);
+
+			float divisor = isRex ? 0.4f : 2f;
+			sizeData.interactionRange = 1f + Mathf.Max(0f, scale - 1f) / divisor;
+		}
+
+
+
+		private static void OnDestroyHook()
+		{
+			On.RoR2.CharacterBody.OnDestroy += (orig, self) =>
+			{
+				DestroySizeData(self);
+
+				orig(self);
+			};
+		}
+
+		private static void DestroySizeData(CharacterBody self)
+		{
+			if (self)
+			{
+				SizeData sizeData = self.gameObject.GetComponent<SizeData>();
+				if (sizeData)
+				{
+					if (sizeData.sizeClass == SizeClass.Player)
+					{
+						Debug.LogWarning("Destroying Player SizeData : " + sizeData.netId);
+					}
+
+					UnityEngine.Object.Destroy(sizeData);
+				}
+			}
+		}
+
+
+
+		private static void ResizeOnVehicleExit(VehicleSeat seat, GameObject gameObject)
+		{
+			CharacterBody body = gameObject.GetComponent<CharacterBody>();
+			if (body)
+			{
+				SizeData sizeData = gameObject.GetComponent<SizeData>();
+				if (sizeData)
+				{
+					sizeData.scale = sizeData.target - 0.01f;
+
+					UpdateSize(body, true);
+				}
+			}
+		}
+
+
+
+		private static void FixPrintController()
+		{
+			IL.RoR2.PrintController.SetPrintThreshold += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchLdfld<PrintController>("maxPrintHeight")
+				);
+
+				if (found)
+				{
+					c.Index += 1;
+
+					c.Emit(OpCodes.Ldarg, 0);
+					c.Emit(OpCodes.Ldarg, 1);
+					c.EmitDelegate<Func<PrintController, float, float>>((printController, sample) =>
+					{
+						if (sample >= 1f) return 100f;
+
+						CharacterModel model = printController.characterModel;
+						if (model)
+						{
+							CharacterBody body = model.body;
+							if (body)
+							{
+								SizeData sizeData = body.gameObject.GetComponent<SizeData>();
+								if (sizeData)
+								{
+									return Mathf.Max(1f, sizeData.scale);
+								}
+							}
+						}
+
+						return 1f;
+					});
+					c.Emit(OpCodes.Mul);
+				}
+				else
+				{
+					Debug.LogWarning("ZetSizeController - FixPrintController Failed");
+				}
+			};
+		}
+
+
+
+		private static void CameraDistanceHook()
+		{
+			IL.RoR2.CameraModes.CameraModePlayerBasic.UpdateInternal += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchStloc(13)
+				);
+
+				if (found)
+				{
+					c.Index += 1;
+
+					c.Emit(OpCodes.Ldloc, 13);
+					c.Emit(OpCodes.Ldloc, 1);
+					c.EmitDelegate<Func<Vector3, CameraRigController, Vector3>>((direction, camRig) =>
+					{
+						CharacterBody body = camRig.targetBody;
+						if (body)
+						{
+							SizeData sizeData = body.gameObject.GetComponent<SizeData>();
+							if (sizeData)
+							{
+								return direction * sizeData.scale;
+							}
+						}
+
+						return direction;
+					});
+					c.Emit(OpCodes.Stloc, 13);
+				}
+				else
+				{
+					Debug.LogWarning("ZetSizeController - CameraDistanceHook Failed");
+				}
+			};
+		}
+
+		private static void CameraVerticalOffsetHook()
+		{
+			IL.RoR2.CameraModes.CameraModePlayerBasic.CalculateTargetPivotPosition += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchLdflda<CharacterCameraParamsData>("pivotVerticalOffset"),
+					x => x.MatchLdfld<HG.BlendableTypes.BlendableFloat>("value")
+				);
+
+				if (found)
+				{
+					c.Index += 2;
+
+					c.Emit(OpCodes.Ldloc, 0);
+					c.EmitDelegate<Func<float, CameraRigController, float>>((vertical, camRig) =>
+					{
+						CharacterBody body = camRig.targetBody;
+						if (body)
+						{
+							SizeData sizeData = body.gameObject.GetComponent<SizeData>();
+							if (sizeData)
+							{
+								return (vertical * sizeData.scale) + sizeData.heightVerticalOffset;
+							}
+						}
+
+						return vertical;
+					});
+				}
+				else
+				{
+					Debug.LogWarning("ZetSizeController - CameraVerticalOffsetHook Failed");
+				}
+			};
+		}
+
+
+
+		private static void InteractionDriverHook()
+		{
+			IL.RoR2.InteractionDriver.FindBestInteractableObject += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchLdarg(0),
+					x => x.MatchCallOrCallvirt<InteractionDriver>("get_interactor"),
+					x => x.MatchLdfld<Interactor>("maxInteractionDistance"),
+					x => x.MatchStloc(3)
+				);
+
+				if (found)
+				{
+					c.Index += 4;
+
+					c.Emit(OpCodes.Ldarg, 0);
+					c.Emit(OpCodes.Ldloc, 3);
+					c.EmitDelegate<Func<InteractionDriver, float, float>>((driver, range) =>
+					{
+						CharacterBody body = driver.characterBody;
+						if (body)
+						{
+							SizeData sizeData = body.gameObject.GetComponent<SizeData>();
+							if (sizeData)
+							{
+								range *= sizeData.interactionRange;
+							}
+						}
+
+						return range;
+					});
+					c.Emit(OpCodes.Stloc, 3);
+				}
+				else
+				{
+					Debug.LogWarning("ZetSizeController - InteractionHook Failed");
+				}
+			};
+		}
+
+		private static void PickupPickerHook()
+		{
+			IL.RoR2.PickupPickerController.FixedUpdateServer += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchLdarg(0),
+					x => x.MatchLdfld<PickupPickerController>("cutoffDistance"),
+					x => x.MatchLdarg(0),
+					x => x.MatchLdfld<PickupPickerController>("cutoffDistance"),
+					x => x.MatchMul()
+				);
+
+				if (found)
+				{
+					c.Index += 5;
+
+					c.Emit(OpCodes.Ldloc, 1);
+					c.EmitDelegate<Func<float, CharacterBody, float>>((cutoff, body) =>
+					{
+						SizeData sizeData = body.gameObject.GetComponent<SizeData>();
+						if (sizeData)
+						{
+							float value = sizeData.interactionRange;
+							cutoff *= value * value;
+						}
+
+						return cutoff;
+					});
+				}
+				else
+				{
+					Debug.LogWarning("ZetSizeController - PickupPickerHook Failed");
+				}
+			};
+		}
+
+
+
+		private static void OverlapAttackPositionHook()
+		{
+			IL.RoR2.OverlapAttack.Fire += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchStloc(3)
+				);
+
+				if (found)
+				{
+					c.Emit(OpCodes.Ldarg, 0);
+					c.EmitDelegate<Func<Vector3, OverlapAttack, Vector3>>((position, attack) =>
+					{
+						GameObject atkObject = attack.attacker;
+						if (atkObject)
+						{
+							CharacterBody body = atkObject.GetComponent<CharacterBody>();
+							if (body)
+							{
+								Vector3 offset = position - body.corePosition;
+
+								if (body.bodyIndex == BeetleBodyIndex || body.bodyIndex == BeetleCrystalBodyIndex)
+								{
+									offset = new Vector3(offset.x, offset.y * 0.5f, offset.z);
+								}
+
+								position = body.corePosition + offset;
+							}
+						}
+
+						return position;
+					});
+				}
+				else
+				{
+					Debug.LogWarning("ZetSizeController - OverlapAttackPositionHook Failed");
+				}
+			};
+		}
+
+		private static void OverlapAttackScaleHook()
+		{
+			IL.RoR2.OverlapAttack.Fire += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchStloc(4)
+				);
+
+				if (found)
+				{
+					c.Emit(OpCodes.Ldarg, 0);
+					c.EmitDelegate<Func<Vector3, OverlapAttack, Vector3>>((scale, attack) =>
+					{
+						GameObject atkObject = attack.attacker;
+						if (atkObject)
+						{
+							CharacterBody body = atkObject.GetComponent<CharacterBody>();
+							if (body)
+							{
+								if (body.bodyIndex == BeetleBodyIndex || body.bodyIndex == BeetleCrystalBodyIndex)
+								{
+									scale = new Vector3(scale.x * 1.25f, scale.y * 2.5f, scale.z * 1.25f);
+								}
+								if (body.bodyIndex == ImpBodyIndex || body.bodyIndex == LemurianBodyIndex)
+								{
+									scale *= 1.75f;
+								}
+							}
+						}
+
+						return scale;
+					});
+				}
+				else
+				{
+					Debug.LogWarning("ZetSizeController - OverlapAttackScaleHook Failed");
+				}
+			};
+		}
+
+
+
+		private static void AnimationHook()
+		{
+			IL.EntityStates.BaseCharacterMain.UpdateAnimationParameters += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				VariableDefinition playbackSpeed = new VariableDefinition(il.Body.Method.Module.TypeSystem.Single);
+				il.Body.Variables.Add(playbackSpeed);
+
+				c.Index = 0;
+
+				c.Emit(OpCodes.Ldarg, 0);
+				c.EmitDelegate<Func<EntityState, float>>((entityState) =>
+				{
+					CharacterBody body = entityState.characterBody;
+					if (body)
+					{
+						SizeData sizeData = body.GetComponent<SizeData>();
+						if (sizeData)
+						{
+							return sizeData.playbackSpeed;
+						}
+					}
+
+					return 1f;
+				});
+				c.Emit(OpCodes.Stloc, playbackSpeed);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchLdsfld(typeof(AnimationParameters).GetField("mainRootPlaybackRate")),
+					x => x.MatchLdloc(3)
+				);
+
+				if (found)
+				{
+					c.Index += 2;
+
+					c.Emit(OpCodes.Ldloc, playbackSpeed);
+					c.Emit(OpCodes.Mul);
+				}
+				else
+				{
+					Debug.LogWarning("ZetSizeController - AnimationHook:rootMotion Failed");
+				}
+
+				found = c.TryGotoNext(
+					x => x.MatchLdsfld(typeof(AnimationParameters).GetField("walkSpeed")),
+					x => x.MatchLdarg(0),
+					x => x.MatchCall<EntityState>("get_characterBody"),
+					x => x.MatchCallvirt<CharacterBody>("get_moveSpeed")
+				);
+
+				if (found)
+				{
+					c.Index += 4;
+
+					c.Emit(OpCodes.Ldloc, playbackSpeed);
+					c.Emit(OpCodes.Mul);
+				}
+				else
+				{
+					Debug.LogWarning("ZetSizeController - AnimationHook:walkSpeed Failed");
+				}
+			};
+		}
+	}
+}
