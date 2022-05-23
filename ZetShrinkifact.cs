@@ -29,7 +29,49 @@ namespace TPDespair.ZetSizeController
 			if (state < 1) return;
 
 			ZetSizeControllerPlugin.RegisterLanguageToken("ARTIFACT_ZETSHRINKIFACT_NAME", "Artifact of Miniaturization");
-			ZetSizeControllerPlugin.RegisterLanguageToken("ARTIFACT_ZETSHRINKIFACT_DESC", "Reduce the size of monsters and players.");
+
+			string desc;
+			if (Configuration.ShrinkifactPlayer.Value)
+			{
+				if (Configuration.ShrinkifactMonster.Value)
+				{
+					desc = "Reduce the size of monsters and players.";
+				}
+				else
+				{
+					desc = "Reduce the size of players.";
+				}
+			}
+			else
+			{
+				if (Configuration.ShrinkifactMonster.Value)
+				{
+					desc = "Reduce the size of monsters.";
+				}
+				else
+				{
+					desc = "Reduce the size of nothing?";
+				}
+			}
+
+			desc += "\n\n<style=cStack>>Size Multiplier: </style>x" + (Configuration.ShrinkifactMult.Value).ToString("0.##");
+			if (Configuration.AllowStatHook.Value)
+			{
+				if (Configuration.ShrinkifactHealth.Value != 1f)
+				{
+					desc += "\n<style=cStack>>Health Multiplier: </style>x" + (Configuration.ShrinkifactHealth.Value).ToString("0.##");
+				}
+				if (Configuration.ShrinkifactDamage.Value != 1f)
+				{
+					desc += "\n<style=cStack>>Damage Multiplier: </style>x" + (Configuration.ShrinkifactDamage.Value).ToString("0.##");
+				}
+				if (Configuration.ShrinkifactMovement.Value != 1f)
+				{
+					desc += "\n<style=cStack>>Movement Speed Multiplier: </style>x" + (Configuration.ShrinkifactMovement.Value).ToString("0.##");
+				}
+			}
+
+			ZetSizeControllerPlugin.RegisterLanguageToken("ARTIFACT_ZETSHRINKIFACT_DESC", desc);
 		}
 	}
 }

@@ -73,7 +73,7 @@ namespace TPDespair.ZetSizeController
 
 		internal static void Init()
 		{
-			state = Configuration.ShrinkifactEnable.Value;
+			state = Configuration.SplitifactEnable.Value;
 			if (state < 1) return;
 
 			ZetSizeControllerPlugin.RegisterLanguageToken("ARTIFACT_ZETSPLITIFACT_NAME", "Artifact of Fragmentation");
@@ -318,33 +318,36 @@ namespace TPDespair.ZetSizeController
 					}
 					else if (count == 0 && IsBodyEligableForSpliting(body))
 					{
-						int splitCount = 0;
-
-						switch (sizeData.sizeClass)
+						if (Random.value < Configuration.SplitifactChance.Value)
 						{
-							case SizeClass.Lesser:
-								splitCount = Configuration.SplitifactMaxLesser.Value;
-								break;
-							case SizeClass.Greater:
-								splitCount = Configuration.SplitifactMaxGreater.Value;
-								break;
-							case SizeClass.Champion:
-								splitCount = Configuration.SplitifactMaxChampion.Value;
-								break;
-						}
+							int splitCount = 0;
 
-						if (splitCount > 0)
-						{
-							if (SmallFlyingBodyIndexes.Contains(body.bodyIndex))
+							switch (sizeData.sizeClass)
 							{
-								splitCount = Mathf.Min(splitCount, Configuration.SplitifactMaxSmallFly.Value);
+								case SizeClass.Lesser:
+									splitCount = Configuration.SplitifactMaxLesser.Value;
+									break;
+								case SizeClass.Greater:
+									splitCount = Configuration.SplitifactMaxGreater.Value;
+									break;
+								case SizeClass.Champion:
+									splitCount = Configuration.SplitifactMaxChampion.Value;
+									break;
 							}
-						}
 
-						if (splitCount > 0)
-						{
-							splitCount = Random.Range(0, splitCount + 1);
-							inventory.GiveItem(TrackerItemDef, splitCount + 1);
+							if (splitCount > 0)
+							{
+								if (SmallFlyingBodyIndexes.Contains(body.bodyIndex))
+								{
+									splitCount = Mathf.Min(splitCount, Configuration.SplitifactMaxSmallFly.Value);
+								}
+							}
+
+							if (splitCount > 0)
+							{
+								splitCount = Random.Range(0, splitCount + 1);
+								inventory.GiveItem(TrackerItemDef, splitCount + 1);
+							}
 						}
 					}
 				}

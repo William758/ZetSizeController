@@ -2,11 +2,13 @@
 
 namespace TPDespair.ZetSizeController
 {
-    public static class Configuration
+	public static class Configuration
 	{
 		public static ConfigEntry<float> SizeChangeRate { get; set; }
 		public static ConfigEntry<float> AbsoluteSizeLimit { get; set; }
+		public static ConfigEntry<bool> ValidateMonsterSize { get; set; }
 
+		public static ConfigEntry<bool> AllowStatHook { get; set; }
 		public static ConfigEntry<bool> ModifyCamera { get; set; }
 		public static ConfigEntry<bool> ModifyInteraction { get; set; }
 		public static ConfigEntry<bool> ModifyOverlap { get; set; }
@@ -14,7 +16,24 @@ namespace TPDespair.ZetSizeController
 
 		public static ConfigEntry<int> ShrinkifactEnable { get; set; }
 		public static ConfigEntry<float> ShrinkifactMult { get; set; }
+		public static ConfigEntry<bool> ShrinkifactExtend { get; set; }
+		public static ConfigEntry<bool> ShrinkifactPlayer { get; set; }
+		public static ConfigEntry<bool> ShrinkifactMonster { get; set; }
+		public static ConfigEntry<float> ShrinkifactHealth { get; set; }
+		public static ConfigEntry<float> ShrinkifactDamage { get; set; }
+		public static ConfigEntry<float> ShrinkifactMovement { get; set; }
+
+		public static ConfigEntry<int> TitanifactEnable { get; set; }
+		public static ConfigEntry<float> TitanifactMult { get; set; }
+		public static ConfigEntry<bool> TitanifactExtend { get; set; }
+		public static ConfigEntry<bool> TitanifactPlayer { get; set; }
+		public static ConfigEntry<bool> TitanifactMonster { get; set; }
+		public static ConfigEntry<float> TitanifactHealth { get; set; }
+		public static ConfigEntry<float> TitanifactDamage { get; set; }
+		public static ConfigEntry<float> TitanifactMovement { get; set; }
+
 		public static ConfigEntry<int> SplitifactEnable { get; set; }
+		public static ConfigEntry<float> SplitifactChance { get; set; }
 		public static ConfigEntry<float> SplitifactMult { get; set; }
 		public static ConfigEntry<int> SplitifactMaxSmallFly { get; set; }
 		public static ConfigEntry<int> SplitifactMaxLesser { get; set; }
@@ -62,9 +81,17 @@ namespace TPDespair.ZetSizeController
 				"1a-General", "absoluteSizeLimit", 4f,
 				"Prevent anything from scaling past value."
 			);
+			ValidateMonsterSize = Config.Bind(
+				"1a-General", "validateMonsterSize", true,
+				"Wait a bit until size changes are made for monsters after spawning."
+			);
 
 
 
+			AllowStatHook = Config.Bind(
+				"1c-Effects", "allowStatHook", true,
+				"Allows changing stat values. Used for artifact effects."
+			);
 			ModifyCamera = Config.Bind(
 				"1c-Effects", "modifyCamera", true,
 				"Modify camera to scale with size."
@@ -92,9 +119,71 @@ namespace TPDespair.ZetSizeController
 				"2a-Artifacts", "shrinkifactMult", 0.65f,
 				"Size multiplier of Artifact of Miniaturization. Unaffected by sizeclass exponent."
 			);
+			ShrinkifactExtend = Config.Bind(
+				"2a-Artifacts", "shrinkifactExtend", true,
+				"Artifact of Miniaturization modifies minimum size limits."
+			);
+			ShrinkifactPlayer = Config.Bind(
+				"2a-Artifacts", "shrinkifactPlayer", true,
+				"Artifact of Miniaturization applies to players."
+			);
+			ShrinkifactMonster = Config.Bind(
+				"2a-Artifacts", "shrinkifactMonster", true,
+				"Artifact of Miniaturization applies to monsters."
+			);
+			ShrinkifactHealth = Config.Bind(
+				"2a-Artifacts", "shrinkifactHealth", 1f,
+				"Artifact of Miniaturization health multiplier."
+			);
+			ShrinkifactDamage = Config.Bind(
+				"2a-Artifacts", "shrinkifactDamage", 1f,
+				"Artifact of Miniaturization damage multiplier."
+			);
+			ShrinkifactMovement = Config.Bind(
+				"2a-Artifacts", "shrinkifactMovement", 1f,
+				"Artifact of Miniaturization movement speed multiplier."
+			);
+
+			TitanifactEnable = Config.Bind(
+				"2a-Artifacts", "titanifactEnable", 1,
+				"Artifact of the Giants. 0 = Disabled, 1 = Artifact Available, 2 = Always Active"
+			);
+			TitanifactMult = Config.Bind(
+				"2a-Artifacts", "titanifactMult", 1.5f,
+				"Size multiplier of Artifact of the Giants. Unaffected by sizeclass exponent."
+			);
+			TitanifactExtend = Config.Bind(
+				"2a-Artifacts", "titanifactExtend", true,
+				"Artifact of the Giants modifies maximum size limits."
+			);
+			TitanifactPlayer = Config.Bind(
+				"2a-Artifacts", "titanifactPlayer", false,
+				"Artifact of the Giants applies to players."
+			);
+			TitanifactMonster = Config.Bind(
+				"2a-Artifacts", "titanifactMonster", true,
+				"Artifact of the Giants applies to monsters."
+			);
+			TitanifactHealth = Config.Bind(
+				"2a-Artifacts", "titanifactHealth", 1.5f,
+				"Artifact of the Giants health multiplier."
+			);
+			TitanifactDamage = Config.Bind(
+				"2a-Artifacts", "titanifactDamage", 1.5f,
+				"Artifact of the Giants damage multiplier."
+			);
+			TitanifactMovement = Config.Bind(
+				"2a-Artifacts", "titanifactMovement", 1f,
+				"Artifact of the Giants movement speed multiplier."
+			);
+
 			SplitifactEnable = Config.Bind(
 				"2a-Artifacts", "splitifactEnable", 1,
 				"Artifact of Fragmentation. 0 = Disabled, 1 = Artifact Available, 2 = Always Active"
+			);
+			SplitifactChance = Config.Bind(
+				"2a-Artifacts", "splitifactChance", 0.5f,
+				"Chance that any monster will be selected for splitting. 0.5 = 50% chance that a monster will be made larger and split on death."
 			);
 			SplitifactMult = Config.Bind(
 				"2a-Artifacts", "splitifactMult", 1.5f,

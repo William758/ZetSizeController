@@ -18,6 +18,12 @@ namespace TPDespair.ZetSizeController
 		Champion
 	}
 
+	public enum ExternalEffect
+	{
+		None = 0,
+		TksatShrinkRay = 1
+	}
+
 
 
 	public class SizeData : MonoBehaviour
@@ -31,14 +37,13 @@ namespace TPDespair.ZetSizeController
 
 		public Vector3 size;
 		public float height = 0f;
-		/*
-		public float extFinalMult = 1f;
-		public float extMult = 1f;
-		public float extIncrease = 0f;
-		*/
+		public int validation = 0;
+
 		public float scale = 1f;
 		public float target = 1f;
-		public float instant = 0f;
+
+		public float forceUpdate = 0f;
+		public ExternalEffect externalEffect = ExternalEffect.None;
 
 		public bool ready = false;
 	}
@@ -61,6 +66,8 @@ namespace TPDespair.ZetSizeController
 		private static BodyIndex ImpBodyIndex = BodyIndex.None;
 		private static BodyIndex LemurianBodyIndex = BodyIndex.None;
 		private static BodyIndex RexBodyIndex = BodyIndex.None;
+		private static BodyIndex ClayableTemplarBodyIndex = BodyIndex.None;
+
 		private static BuffIndex ShrinkRayBuff = BuffIndex.None;
 
 		public static Action<CharacterBody, SizeData> onSizeDataCreated;
@@ -149,6 +156,7 @@ namespace TPDespair.ZetSizeController
 			ImpBodyIndex = BodyCatalog.FindBodyIndex("ImpBody");
 			LemurianBodyIndex = BodyCatalog.FindBodyIndex("LemurianBody");
 			RexBodyIndex = BodyCatalog.FindBodyIndex("TreebotBody");
+			ClayableTemplarBodyIndex = BodyCatalog.FindBodyIndex("Templar_Survivor");
 
 			Debug.LogWarning("ZetSizeController - PopulateBodyIndexes : Lesser[" + LesserBodyIndexes.Count + "] Greater[" + GreaterBodyIndexes.Count + "] Champion[" + ChampionBodyIndexes.Count + "]");
 		}
@@ -186,7 +194,7 @@ namespace TPDespair.ZetSizeController
 				if (!sizeData)
 				{
 					if (!HasTransform(self)) return;
-					if (!RexPls(self)) return;
+					if (!ValidateScale(self)) return;
 
 					SizeClass sizeClass = GetSizeClass(self);
 					if (sizeClass == SizeClass.None) return;
@@ -198,6 +206,12 @@ namespace TPDespair.ZetSizeController
 					sizeData.size = self.modelLocator.modelTransform.localScale;
 					sizeData.height = Mathf.Abs(self.corePosition.y - self.footPosition.y) * 2f;
 					sizeData.sizeClass = sizeClass;
+
+					if (sizeClass != SizeClass.Player && Configuration.ValidateMonsterSize.Value)
+					{
+						// 2 fixedupdate of waiting , 1 fixedupdate instant update size
+						sizeData.validation = 3;
+					}
 
 					Action<CharacterBody, SizeData> action = onSizeDataCreated;
 					if (action != null)
@@ -215,6 +229,7 @@ namespace TPDespair.ZetSizeController
 				}
 
 				// wait until onSizeDataCreated is finished
+				// onSizeDataCreated : splitifact rollcount updates inventory which triggers this function again
 				if (!sizeData.ready) return;
 
 				float value = GetCharacterScale(self, sizeData);
@@ -238,11 +253,16 @@ namespace TPDespair.ZetSizeController
 			return self.modelLocator && self.modelLocator.modelTransform;
 		}
 
-		private static bool RexPls(CharacterBody self)
+		private static bool ValidateScale(CharacterBody self)
 		{
 			if (self.bodyIndex == RexBodyIndex)
 			{
 				if (Mathf.Abs(self.modelLocator.modelTransform.localScale.x - 0.75f) >= 0.01f) return false;
+			}
+
+			if (self.bodyIndex == ClayableTemplarBodyIndex)
+			{
+				if (Mathf.Abs(self.modelLocator.modelTransform.localScale.x - 0.9f) >= 0.01f) return false;
 			}
 
 			return true;
@@ -325,11 +345,7 @@ namespace TPDespair.ZetSizeController
 
 			int count;
 			float increase = classIncrease, multiplier = classMultiplier, finalMultiplier = 1f, modifier = Configuration.ModifierMult.Value;
-			/*
-			finalMultiplier *= sizeData.extFinalMult;
-			multiplier *= sizeData.extMult;
-			increase += sizeData.extIncrease;
-			*/
+
 			Inventory inventory = self.inventory;
 			if (inventory)
 			{
@@ -378,7 +394,7 @@ namespace TPDespair.ZetSizeController
 
 			if (self.HasBuff(ShrinkRayBuff))
 			{
-				finalMultiplier *= 0.5f;
+				finalMultiplier *= 0.65f;
 			}
 
 			if (increase < 0f)
@@ -395,8 +411,57 @@ namespace TPDespair.ZetSizeController
 
 			if (ZetShrinkifact.Enabled)
 			{
-				finalMultiplier *= Configuration.ShrinkifactMult.Value;
+				if (sizeData.sizeClass == SizeClass.Player)
+				{
+					if (Configuration.ShrinkifactPlayer.Value)
+					{
+						finalMultiplier *= Configuration.ShrinkifactMult.Value;
+						if (Configuration.ShrinkifactExtend.Value)
+						{
+							minimum *= Configuration.ShrinkifactMult.Value;
+						}
+					}
+				}
+				else
+				{
+					if (Configuration.ShrinkifactMonster.Value)
+					{
+						finalMultiplier *= Configuration.ShrinkifactMult.Value;
+						if (Configuration.ShrinkifactExtend.Value)
+						{
+							minimum *= Configuration.ShrinkifactMult.Value;
+						}
+					}
+				}
 			}
+
+			if (ZetTitanifact.Enabled)
+			{
+				if (sizeData.sizeClass == SizeClass.Player)
+				{
+					if (Configuration.TitanifactPlayer.Value)
+					{
+						finalMultiplier *= Configuration.TitanifactMult.Value;
+						if (Configuration.TitanifactExtend.Value)
+						{
+							maximum *= Configuration.TitanifactMult.Value;
+						}
+					}
+				}
+				else
+				{
+					if (Configuration.TitanifactMonster.Value)
+					{
+						finalMultiplier *= Configuration.TitanifactMult.Value;
+						if (Configuration.TitanifactExtend.Value)
+						{
+							maximum *= Configuration.TitanifactMult.Value;
+						}
+					}
+				}
+			}
+
+			minimum = Mathf.Max(minimum, 0.1f);
 
 			value *= finalMultiplier;
 
@@ -424,54 +489,88 @@ namespace TPDespair.ZetSizeController
 				SizeData sizeData = self.gameObject.GetComponent<SizeData>();
 				if (sizeData)
 				{
-					bool update = false;
+					float deltaTime = Time.fixedDeltaTime;
+					bool validating = Configuration.ValidateMonsterSize.Value;
+					bool isPlayer = sizeData.sizeClass == SizeClass.Player;
 
-					if (self.HasBuff(ShrinkRayBuff))
+					if (!validating || isPlayer || sizeData.validation <= 1)
 					{
-						sizeData.instant = 0.1f;
-					}
-
-					if (sizeData.scale != sizeData.target)
-					{
-						update = true;
-
-						float rate = Configuration.SizeChangeRate.Value;
-
-						if (instant || sizeData.instant > 0f || rate <= 0f)
+						if (validating && !isPlayer && sizeData.validation == 1)
 						{
-							sizeData.scale = sizeData.target;
+							sizeData.size = self.modelLocator.modelTransform.localScale;
 
-							//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning("Player Size : " + sizeData.netId + " - " + sizeData.scale);
+							instant = true;
 						}
-						else
-						{
-							float delta = Time.fixedDeltaTime * sizeData.scale * rate;
 
-							if (sizeData.scale < sizeData.target)
+						TrackExternalEffects(self, sizeData);
+
+						bool update = false;
+						bool forcedUpdate = sizeData.forceUpdate > 0f;
+
+						if (forcedUpdate || sizeData.scale != sizeData.target)
+						{
+							update = true;
+
+							float rate = Configuration.SizeChangeRate.Value;
+
+							if (instant || forcedUpdate || rate <= 0f)
 							{
-								sizeData.scale = Mathf.Min(sizeData.scale + delta, sizeData.target);
+								sizeData.scale = sizeData.target;
+
+								//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning("Player Size : " + sizeData.netId + " - " + sizeData.scale);
 							}
 							else
 							{
-								sizeData.scale = Mathf.Max(sizeData.scale - delta, sizeData.target);
-							}
+								float delta = deltaTime * sizeData.scale * rate;
 
-							//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning("Player Size : " + sizeData.netId + " - " + sizeData.scale + " => " + sizeData.target);
+								if (sizeData.scale < sizeData.target)
+								{
+									sizeData.scale = Mathf.Min(sizeData.scale + delta, sizeData.target);
+								}
+								else
+								{
+									sizeData.scale = Mathf.Max(sizeData.scale - delta, sizeData.target);
+								}
+
+								//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning("Player Size : " + sizeData.netId + " - " + sizeData.scale + " => " + sizeData.target);
+							}
+						}
+
+						//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning(">> Current Scale - " + self.modelLocator.modelTransform.localScale.x);
+
+						if (update && HasTransform(self))
+						{
+							SetSize(self, sizeData);
+						}
+
+						if (sizeData.forceUpdate > 0f)
+						{
+							sizeData.forceUpdate = Mathf.Max(0f, sizeData.forceUpdate - deltaTime);
 						}
 					}
-					
-					//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning(">> Current Scale - " + self.modelLocator.modelTransform.localScale.x);
-					
-					if (update && HasTransform(self))
-					{
-						SetSize(self, sizeData);
-					}
 
-					if (sizeData.instant > 0f)
+					if (sizeData.validation > 0)
 					{
-						sizeData.instant -= Time.fixedDeltaTime;
+						sizeData.validation--;
 					}
 				}
+			}
+		}
+
+		private static void TrackExternalEffects(CharacterBody self, SizeData sizeData)
+		{
+			ExternalEffect external = ExternalEffect.None;
+
+			if (self.HasBuff(ShrinkRayBuff))
+			{
+				external |= ExternalEffect.TksatShrinkRay;
+			}
+
+			if (sizeData.externalEffect != external)
+			{
+				sizeData.externalEffect = external;
+
+				sizeData.forceUpdate = 0.1f;
 			}
 		}
 
@@ -560,14 +659,19 @@ namespace TPDespair.ZetSizeController
 					c.Emit(OpCodes.Ldarg, 1);
 					c.EmitDelegate<Func<PrintController, float, float>>((printController, sample) =>
 					{
-						if (sample >= 1f) return 100f;
-
 						CharacterModel model = printController.characterModel;
 						if (model)
 						{
 							CharacterBody body = model.body;
 							if (body)
 							{
+								if (body.bodyIndex == ClayableTemplarBodyIndex)
+								{
+									return 1f;
+								}
+
+								if (sample >= 1f) return 100f;
+
 								SizeData sizeData = body.gameObject.GetComponent<SizeData>();
 								if (sizeData)
 								{

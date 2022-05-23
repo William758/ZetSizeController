@@ -20,7 +20,7 @@ namespace TPDespair.ZetSizeController
 
 	public class ZetSizeControllerPlugin : BaseUnityPlugin
 	{
-		public const string ModVer = "1.0.0";
+		public const string ModVer = "1.0.3";
 		public const string ModName = "ZetSizeController";
 		public const string ModGuid = "com.TPDespair.ZetSizeController";
 
@@ -41,6 +41,12 @@ namespace TPDespair.ZetSizeController
 
 			ZetShrinkifact.Init();
 			ZetSplitifact.Init();
+			ZetTitanifact.Init();
+
+			if (Configuration.AllowStatHook.Value)
+			{
+				StatHooks.Init();
+			}
 
 			LanguageOverride();
 		}
@@ -147,7 +153,6 @@ namespace TPDespair.ZetSizeController
 
 			return tex;
 		}
-
 
 
 		/*

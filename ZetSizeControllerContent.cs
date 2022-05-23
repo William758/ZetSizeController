@@ -48,6 +48,7 @@ namespace TPDespair.ZetSizeController
 		{
 			public static ArtifactDef ZetShrinkifact;
 			public static ArtifactDef ZetSplitifact;
+			public static ArtifactDef ZetTitanifact;
 
 			public static List<ArtifactDef> artifactDefs = new List<ArtifactDef>();
 
@@ -76,6 +77,18 @@ namespace TPDespair.ZetSizeController
 
 					artifactDefs.Add(ZetSplitifact);
 				}
+
+				if (Configuration.TitanifactEnable.Value == 1)
+				{
+					ZetTitanifact = ScriptableObject.CreateInstance<ArtifactDef>();
+					ZetTitanifact.cachedName = "ARTIFACT_ZETTITANIFACT";
+					ZetTitanifact.nameToken = "ARTIFACT_ZETTITANIFACT_NAME";
+					ZetTitanifact.descriptionToken = "ARTIFACT_ZETTITANIFACT_DESC";
+					ZetTitanifact.smallIconSelectedSprite = ZetSizeControllerPlugin.CreateSprite(Properties.Resources.zettitan_selected, Color.magenta);
+					ZetTitanifact.smallIconDeselectedSprite = ZetSizeControllerPlugin.CreateSprite(Properties.Resources.zettitan_deselected, Color.gray);
+
+					artifactDefs.Add(ZetTitanifact);
+				}
 			}
 		}
 
@@ -89,7 +102,7 @@ namespace TPDespair.ZetSizeController
 			{
 				ZetSplitTracker = ScriptableObject.CreateInstance<ItemDef>();
 				ZetSplitTracker.name = "ZetSplitTracker";
-				ZetSplitTracker.tier = ItemTier.NoTier;
+				ZetSplitTracker.deprecatedTier = ItemTier.NoTier;
 				ZetSplitTracker.AutoPopulateTokens();
 				ZetSplitTracker.hidden = true;
 				ZetSplitTracker.canRemove = false;
