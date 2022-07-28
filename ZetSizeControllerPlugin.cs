@@ -20,7 +20,7 @@ namespace TPDespair.ZetSizeController
 
 	public class ZetSizeControllerPlugin : BaseUnityPlugin
 	{
-		public const string ModVer = "1.0.3";
+		public const string ModVer = "1.0.4";
 		public const string ModName = "ZetSizeController";
 		public const string ModGuid = "com.TPDespair.ZetSizeController";
 
@@ -165,9 +165,9 @@ namespace TPDespair.ZetSizeController
 				CreateDroplet(RoR2Content.Equipment.AffixWhite, transform.position + new Vector3(-5f, 5f, 5f));
 				CreateDroplet(RoR2Content.Items.Knurl, transform.position + new Vector3(0f, 5f, 7.5f));
 				CreateDroplet(DLC1Content.Items.HalfSpeedDoubleHealth, transform.position + new Vector3(5f, 5f, 5f));
-				//CreateDroplet(Catalog.Equip.AffixHaunted, transform.position + new Vector3(-5f, 5f, -5f));
-				//CreateDroplet(Catalog.Equip.AffixPoison, transform.position + new Vector3(0f, 5f, -7.5f));
-				//CreateDroplet(Catalog.Equip.AffixLunar, transform.position + new Vector3(5f, 5f, -5f));
+				CreateDroplet(RoR2Content.Items.LunarDagger, transform.position + new Vector3(-5f, 5f, -5f));
+				CreateDroplet(RoR2Content.Items.BarrierOnOverHeal, transform.position + new Vector3(0f, 5f, -7.5f));
+				CreateDroplet(DLC1Content.Items.MushroomVoid, transform.position + new Vector3(5f, 5f, -5f));
 			}
 			if (Input.GetKeyDown(KeyCode.F3))
 			{

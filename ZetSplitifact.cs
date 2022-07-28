@@ -10,7 +10,7 @@ namespace TPDespair.ZetSizeController
 		private static readonly List<string> SplitableBodyNames = new List<string> { "BeetleBody", "BeetleCrystalBody", "ClayBody", "FlyingVerminBody", "HermitCrabBody", "ImpBody", "JellyfishBody", "LemurianBody", "LunarExploderBody", "MiniMushroomBody", "MinorConstructBody", "MoffeinClayManBody", "VerminBody", "VultureBody", "WispBody", "AncientWispBody", "BeetleGuardBody", "BeetleGuardCrystalBody", "BellBody", "BisonBody", "BomberBody", "ClayBruiserBody", "ClayGrenadierBody", "GolemBody", "GreaterWispBody", "LemurianBruiserBody", "LunarGolemBody", "LunarKnightBody", "LunarWispBody", "MajorConstructBody", "NullifierBody", "ParentBody", "RoboBallMiniBody", "VoidJailerBody", "ArchWispBody", "BeetleQueen2Body", "ClayBossBody", "DireseekerBody", "ElectricWormBody", "GrandParentBody", "GravekeeperBody", "ImpBossBody", "MagmaWormBody", "MegaConstructBody", "MoffeinAncientWispBody", "RoboBallBossBody", "SuperRoboBallBossBody", "TitanBody", "VagrantBody", "VoidMegaCrabBody" };
 		private static readonly List<BodyIndex> SplitableBodyIndexes = new List<BodyIndex>();
 
-		private static readonly List<string> SmallFlyingBodyNames = new List<string> { "FlyingVerminBody", "VultureBody", "WispBody", "RoboBallMiniBody" };
+		private static readonly List<string> SmallFlyingBodyNames = new List<string> { "FlyingVerminBody", "JellyfishBody", "VultureBody", "WispBody", "RoboBallMiniBody" };
 		private static readonly List<BodyIndex> SmallFlyingBodyIndexes = new List<BodyIndex>();
 
 		private static readonly List<NetworkInstanceId> SplitBodies = new List<NetworkInstanceId>();
@@ -225,7 +225,9 @@ namespace TPDespair.ZetSizeController
 					Vector3 vector = rotation * Vector3.forward;
 					float distance = spawnRadius;
 
+					#pragma warning disable IDE0018 // Inline variable declaration
 					RaycastHit raycastHit;
+					#pragma warning restore IDE0018 // Inline variable declaration
 					if (Physics.Raycast(new Ray(position, vector), out raycastHit, spawnRadius + bodyHorizontalRadius, LayerIndex.world.intVal, QueryTriggerInteraction.Ignore))
 					{
 						distance = raycastHit.distance - bodyHorizontalRadius;

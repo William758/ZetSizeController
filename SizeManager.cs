@@ -38,6 +38,7 @@ namespace TPDespair.ZetSizeController
 		public Vector3 size;
 		public float height = 0f;
 		public int validation = 0;
+		public bool newData = true;
 
 		public float scale = 1f;
 		public float target = 1f;
@@ -70,6 +71,8 @@ namespace TPDespair.ZetSizeController
 
 		private static BuffIndex ShrinkRayBuff = BuffIndex.None;
 
+		private static ItemTier LunarVoidTier = ItemTier.AssignedAtRuntime;
+
 		public static Action<CharacterBody, SizeData> onSizeDataCreated;
 
 
@@ -83,7 +86,7 @@ namespace TPDespair.ZetSizeController
 			FixedUpdateHook();
 			OnDestroyHook();
 
-			CharacterBody.onBodyStartGlobal += RecalculateSize;
+			CharacterBody.onBodyStartGlobal += RecalcSizeData;
 			VehicleSeat.onPassengerExitGlobal += ResizeOnVehicleExit;
 
 			FixPrintController();
@@ -167,7 +170,14 @@ namespace TPDespair.ZetSizeController
 			if (buffIndex != BuffIndex.None)
 			{
 				ShrinkRayBuff = buffIndex;
-				Debug.LogWarning("ZetSplitifact - ShrinkRayBuff : " + ShrinkRayBuff);
+				//Debug.LogWarning("ZetSplitifact - ShrinkRayBuff : " + ShrinkRayBuff);
+			}
+
+			ItemTierDef itemTierDef = ItemTierCatalog.FindTierDef("VoidLunarTierDef");
+			if (itemTierDef)
+			{
+				LunarVoidTier = itemTierDef.tier;
+				//Debug.LogWarning("ZetSplitifact - LunarVoidTier : " + LunarVoidTier);
 			}
 		}
 
@@ -177,34 +187,60 @@ namespace TPDespair.ZetSizeController
 		{
 			On.RoR2.CharacterBody.RecalculateStats += (orig, self) =>
 			{
-				RecalculateSize(self);
+				// create before stats calc for artifact stat effects
+				GetSizeData(self);
 
 				orig(self);
+
+				RecalcSizeData(self);
 			};
 		}
 
-		private static void RecalculateSize(CharacterBody self)
+		private static void RecalcSizeData(CharacterBody self)
 		{
-			if (self && self.masterObject)
+			SizeData sizeData = GetSizeData(self);
+			if (sizeData)
 			{
-				bool newData = false;
+				float value = GetCharacterScale(self, sizeData);
 
-				SizeData sizeData = self.gameObject.GetComponent<SizeData>();
+				if (sizeData.target != value)
+				{
+					if (sizeData.sizeClass == SizeClass.Player)
+					{
+						Debug.LogWarning("Player Size : " + sizeData.netId + " - " + $"{sizeData.target:0.###}" + " => " + $"{value:0.###}");
+					}
+
+					sizeData.target = value;
+				}
+
+				if (sizeData.newData)
+				{
+					sizeData.newData = false;
+
+					UpdateSize(self, true);
+				}
+			}
+		}
+
+		private static SizeData GetSizeData(CharacterBody body)
+		{
+			// force masterObject assignment by reading it
+			if (body && body.masterObject)
+			{
+				SizeData sizeData = body.gameObject.GetComponent<SizeData>();
 
 				if (!sizeData)
 				{
-					if (!HasTransform(self)) return;
-					if (!ValidateScale(self)) return;
+					if (!HasTransform(body)) return null;
+					if (!ValidateScale(body)) return null;
 
-					SizeClass sizeClass = GetSizeClass(self);
-					if (sizeClass == SizeClass.None) return;
+					SizeClass sizeClass = GetSizeClass(body);
+					if (sizeClass == SizeClass.None) return null;
 
-					newData = true;
-
-					sizeData = self.gameObject.AddComponent<SizeData>();
-					sizeData.netId = self.netId;
-					sizeData.size = self.modelLocator.modelTransform.localScale;
-					sizeData.height = Mathf.Abs(self.corePosition.y - self.footPosition.y) * 2f;
+					sizeData = body.gameObject.AddComponent<SizeData>();
+					sizeData.netId = body.netId;
+					sizeData.size = body.modelLocator.modelTransform.localScale;
+					sizeData.height = Mathf.Abs(body.corePosition.y - body.footPosition.y) * 2f;
 					sizeData.sizeClass = sizeClass;
 
 					if (sizeClass != SizeClass.Player && Configuration.ValidateMonsterSize.Value)
@@ -213,10 +249,14 @@ namespace TPDespair.ZetSizeController
 						sizeData.validation = 3;
 					}
 
+					sizeData.newData = true;
+
 					Action<CharacterBody, SizeData> action = onSizeDataCreated;
 					if (action != null)
 					{
-						action(self, sizeData);
+						#pragma warning disable IDE1005 // Delegate invocation can be simplified.
+						action(body, sizeData);
+						#pragma warning restore IDE1005 // Delegate invocation can be simplified.
 					}
 
 					sizeData.ready = true;
@@ -230,22 +270,12 @@ namespace TPDespair.ZetSizeController
 
 				// wait until onSizeDataCreated is finished
 				// onSizeDataCreated : splitifact rollcount updates inventory which triggers this function again
-				if (!sizeData.ready) return;
+				if (!sizeData.ready) return null;
 
-				float value = GetCharacterScale(self, sizeData);
-
-				if (sizeData.target != value)
-				{
-					if (sizeData.sizeClass == SizeClass.Player)
-					{
-						Debug.LogWarning("Player Size : " + sizeData.netId + " - " + $"{sizeData.target:0.###}" + " => " + $"{value:0.###}");
-					}
-
-					sizeData.target = value;
-				}
-
-				if (newData) UpdateSize(self, true);
+				return sizeData;
 			}
+
+			return null;
 		}
 
 		private static bool HasTransform(CharacterBody self)
@@ -295,14 +325,14 @@ namespace TPDespair.ZetSizeController
 
 		private static float GetCharacterScale(CharacterBody self, SizeData sizeData)
 		{
-			float classIncrease, classMultiplier, exponent, maximum, minimum;
+			float increase, multiplier, exponent, maximum, minimum;
 
 			switch (sizeData.sizeClass)
 			{
 				case SizeClass.Player:
 					{
-						classIncrease = Configuration.PlayerSizeIncrease.Value;
-						classMultiplier = Configuration.PlayerSizeMult.Value;
+						increase = Configuration.PlayerSizeIncrease.Value;
+						multiplier = Configuration.PlayerSizeMult.Value;
 						exponent = Configuration.PlayerSizeExponent.Value;
 						maximum = Configuration.PlayerSizeLimit.Value;
 						minimum = 0.5f;
@@ -310,8 +340,8 @@ namespace TPDespair.ZetSizeController
 					break;
 				case SizeClass.Lesser:
 					{
-						classIncrease = Configuration.LesserSizeIncrease.Value;
-						classMultiplier = Configuration.LesserSizeMult.Value;
+						increase = Configuration.LesserSizeIncrease.Value;
+						multiplier = Configuration.LesserSizeMult.Value;
 						exponent = Configuration.LesserSizeExponent.Value;
 						maximum = Configuration.LesserSizeLimit.Value;
 						minimum = 0.5f;
@@ -319,8 +349,8 @@ namespace TPDespair.ZetSizeController
 					break;
 				case SizeClass.Greater:
 					{
-						classIncrease = Configuration.GreaterSizeIncrease.Value;
-						classMultiplier = Configuration.GreaterSizeMult.Value;
+						increase = Configuration.GreaterSizeIncrease.Value;
+						multiplier = Configuration.GreaterSizeMult.Value;
 						exponent = Configuration.GreaterSizeExponent.Value;
 						maximum = Configuration.GreaterSizeLimit.Value;
 						minimum = 0.35f;
@@ -328,8 +358,8 @@ namespace TPDespair.ZetSizeController
 					break;
 				case SizeClass.Champion:
 					{
-						classIncrease = Configuration.ChampionSizeIncrease.Value;
-						classMultiplier = Configuration.ChampionSizeMult.Value;
+						increase = Configuration.ChampionSizeIncrease.Value;
+						multiplier = Configuration.ChampionSizeMult.Value;
 						exponent = Configuration.ChampionSizeExponent.Value;
 						maximum = Configuration.ChampionSizeLimit.Value;
 						minimum = 0.25f;
@@ -343,36 +373,58 @@ namespace TPDespair.ZetSizeController
 
 			maximum = Mathf.Min(Configuration.AbsoluteSizeLimit.Value, maximum);
 
-			int count;
-			float increase = classIncrease, multiplier = classMultiplier, finalMultiplier = 1f, modifier = Configuration.ModifierMult.Value;
+			if (Configuration.IgnoreSizeLimit.Value)
+			{
+				maximum = 999f;
+				minimum = 0.1f;
+			}
 
+			if (Configuration.IgnoreSizeExponent.Value)
+			{
+				exponent = 1f;
+			}
+
+			float ignoreExponentMultiplier = 1f;
+			float modifier = Configuration.ModifierMult.Value;
+
+			int count;
 			Inventory inventory = self.inventory;
 			if (inventory)
 			{
+				float itemCatLimit = Configuration.CoreItemModifierLimit.Value;
+
 				count = inventory.GetItemCount(RoR2Content.Items.Knurl);
 				if (count > 0)
 				{
-					increase += modifier * Configuration.KnurlSizeIncrease.Value * Mathf.Min(5f, Mathf.Sqrt(count));
+					increase += modifier * Configuration.KnurlSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
 				}
 
 				count = 10 * self.inventory.GetItemCount(RoR2Content.Items.Pearl);
 				count += 25 * self.inventory.GetItemCount(RoR2Content.Items.ShinyPearl);
 				if (count > 0)
 				{
-					increase += modifier * Configuration.PearlSizeIncrease.Value * Mathf.Min(5f, Mathf.Sqrt(count / 10f));
+					increase += modifier * Configuration.PearlSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count / 10f));
 				}
 
 				count = inventory.GetItemCount(DLC1Content.Items.HalfSpeedDoubleHealth);
 				if (count > 0)
 				{
-					increase += modifier * Configuration.StoneFluxSizeIncrease.Value * Mathf.Min(5f, Mathf.Sqrt(count));
+					increase += modifier * Configuration.StoneFluxSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
 				}
 
 				count = inventory.GetItemCount(ZetSizeControllerContent.Items.ZetSplitTracker);
 				if (count > 1)
 				{
-					finalMultiplier *= Mathf.Pow(Configuration.SplitifactMult.Value, count - 1);
+					ignoreExponentMultiplier *= Mathf.Pow(Configuration.SplitifactMult.Value, count - 1);
 				}
+
+				count = inventory.GetItemCount(RoR2Content.Items.LunarDagger);
+				if (count > 0)
+				{
+					ignoreExponentMultiplier *= Mathf.Max(Configuration.GlassModifierLimit.Value, Mathf.Pow(Configuration.GlassSizeMult.Value, count));
+				}
+
+				increase += modifier * GetItemScoreScaling(inventory);
 			}
 
 			if (self.isBoss)
@@ -389,13 +441,15 @@ namespace TPDespair.ZetSizeController
 
 			if (self.HasBuff(RoR2Content.Buffs.TonicBuff))
 			{
-				multiplier *= Configuration.TonicSizeMult.Value;
+				ignoreExponentMultiplier *= Configuration.TonicSizeMult.Value;
 			}
 
 			if (self.HasBuff(ShrinkRayBuff))
 			{
-				finalMultiplier *= 0.65f;
+				ignoreExponentMultiplier *= 0.65f;
 			}
+
+			increase += modifier * GetLevelScaling(sizeData.sizeClass == SizeClass.Player, self.level);
 
 			if (increase < 0f)
 			{
@@ -415,7 +469,7 @@ namespace TPDespair.ZetSizeController
 				{
 					if (Configuration.ShrinkifactPlayer.Value)
 					{
-						finalMultiplier *= Configuration.ShrinkifactMult.Value;
+						ignoreExponentMultiplier *= Configuration.ShrinkifactMult.Value;
 						if (Configuration.ShrinkifactExtend.Value)
 						{
 							minimum *= Configuration.ShrinkifactMult.Value;
@@ -426,7 +480,7 @@ namespace TPDespair.ZetSizeController
 				{
 					if (Configuration.ShrinkifactMonster.Value)
 					{
-						finalMultiplier *= Configuration.ShrinkifactMult.Value;
+						ignoreExponentMultiplier *= Configuration.ShrinkifactMult.Value;
 						if (Configuration.ShrinkifactExtend.Value)
 						{
 							minimum *= Configuration.ShrinkifactMult.Value;
@@ -441,8 +495,8 @@ namespace TPDespair.ZetSizeController
 				{
 					if (Configuration.TitanifactPlayer.Value)
 					{
-						finalMultiplier *= Configuration.TitanifactMult.Value;
-						if (Configuration.TitanifactExtend.Value)
+						ignoreExponentMultiplier *= Configuration.TitanifactMult.Value;
+						if (Configuration.TitanifactExtend.Value && Configuration.PlayerSizeLimitExtendable.Value)
 						{
 							maximum *= Configuration.TitanifactMult.Value;
 						}
@@ -452,7 +506,7 @@ namespace TPDespair.ZetSizeController
 				{
 					if (Configuration.TitanifactMonster.Value)
 					{
-						finalMultiplier *= Configuration.TitanifactMult.Value;
+						ignoreExponentMultiplier *= Configuration.TitanifactMult.Value;
 						if (Configuration.TitanifactExtend.Value)
 						{
 							maximum *= Configuration.TitanifactMult.Value;
@@ -463,11 +517,82 @@ namespace TPDespair.ZetSizeController
 
 			minimum = Mathf.Max(minimum, 0.1f);
 
-			value *= finalMultiplier;
+			value *= ignoreExponentMultiplier;
 
 			value = Mathf.Clamp(value, minimum, Mathf.Max(minimum, maximum));
 
 			return value;
+		}
+
+		private static float GetItemScoreScaling(Inventory inventory)
+		{
+			float itemScoreEffect = Configuration.ItemScoreSizeIncrease.Value;
+			if (itemScoreEffect > 0f)
+			{
+				float itemScore = 0f;
+
+				float t1 = Configuration.ItemScoreT1Effect.Value;
+				float t2 = Configuration.ItemScoreT2Effect.Value;
+				float t3 = Configuration.ItemScoreT3Effect.Value;
+				float boss = Configuration.ItemScoreBossEffect.Value;
+				float lunar = Configuration.ItemScoreLunarEffect.Value;
+
+				itemScore += t1 * inventory.GetTotalItemCountOfTier(ItemTier.Tier1);
+				itemScore += t1 * inventory.GetTotalItemCountOfTier(ItemTier.VoidTier1);
+
+				itemScore += t2 * inventory.GetTotalItemCountOfTier(ItemTier.Tier2);
+				itemScore += t2 * inventory.GetTotalItemCountOfTier(ItemTier.VoidTier2);
+
+				itemScore += t3 * inventory.GetTotalItemCountOfTier(ItemTier.Tier3);
+				itemScore += t3 * inventory.GetTotalItemCountOfTier(ItemTier.VoidTier3);
+
+				itemScore += boss * inventory.GetTotalItemCountOfTier(ItemTier.Boss);
+				itemScore += boss * inventory.GetTotalItemCountOfTier(ItemTier.VoidBoss);
+
+				itemScore += lunar * inventory.GetTotalItemCountOfTier(ItemTier.Lunar);
+				if (LunarVoidTier != ItemTier.AssignedAtRuntime)
+				{
+					itemScore += lunar * inventory.GetTotalItemCountOfTier(LunarVoidTier);
+				}
+
+				if (itemScore > 0f)
+				{
+					itemScoreEffect *= Mathf.Pow(itemScore, Configuration.ItemScoreSizeExponent.Value);
+
+					return Mathf.Min(itemScoreEffect, Configuration.ItemScoreSizeLimit.Value);
+				}
+			}
+
+			return 0f;
+		}
+
+		private static float GetLevelScaling(bool isPlayer, float level)
+		{
+			if (level > 1.99f)
+			{
+				float levelSizeIncrease, levelSizeExponent, levelSizeLimit;
+
+				if (isPlayer)
+				{
+					levelSizeIncrease = Mathf.Abs(Configuration.PlayerLevelSizeIncrease.Value);
+					if (levelSizeIncrease == 0f) return 0f;
+					levelSizeExponent = Configuration.PlayerLevelSizeExponent.Value;
+					levelSizeLimit = Configuration.PlayerLevelSizeLimit.Value;
+				}
+				else
+				{
+					levelSizeIncrease = Mathf.Abs(Configuration.MonsterLevelSizeIncrease.Value);
+					if (levelSizeIncrease == 0f) return 0f;
+					levelSizeExponent = Configuration.MonsterLevelSizeExponent.Value;
+					levelSizeLimit = Configuration.MonsterLevelSizeLimit.Value;
+				}
+
+				levelSizeIncrease *= Mathf.Pow(level - 1f, levelSizeExponent);
+
+				return Mathf.Min(levelSizeIncrease, levelSizeLimit);
+			}
+
+			return 0f;
 		}
 
 

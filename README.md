@@ -2,9 +2,13 @@
 
 Configure the size of entities and how effective size changing effects are on different size classes.
 
-Pearls, Knurls, StoneFlux and Tonic increase character size.
+Pearls, Knurls, StoneFlux, Glass and Tonic change character size.
 
 Boss and elite status increase character size.
+
+Levels increase character size. (Disable by default)
+
+ItemScore (tier and count) increases character size. (Disable by default)
 
 Automatically adjust the camera and interaction range to scale with size.
 
@@ -25,6 +29,8 @@ Requires Bepinex and HookGenPatcher.
 Use r2modman or place inside of Risk of Rain 2/Bepinex/Plugins/
 
 ## Changelog:
+
+v1.0.4 - Add JellyFish to smallFlyer list. Reorganize config sections (artifact and modifiers values reset). Added some more configs. Level and itemScore based size scaling.
 
 v1.0.3 - Added Artifact of the Giants. Tweak how mod gets default monster scale.
 

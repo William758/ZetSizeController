@@ -102,7 +102,9 @@ namespace TPDespair.ZetSizeController
 			{
 				ZetSplitTracker = ScriptableObject.CreateInstance<ItemDef>();
 				ZetSplitTracker.name = "ZetSplitTracker";
+				#pragma warning disable CS0618 // Type or member is obsolete
 				ZetSplitTracker.deprecatedTier = ItemTier.NoTier;
+				#pragma warning restore CS0618 // Type or member is obsolete
 				ZetSplitTracker.AutoPopulateTokens();
 				ZetSplitTracker.hidden = true;
 				ZetSplitTracker.canRemove = false;
