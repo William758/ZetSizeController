@@ -30,6 +30,8 @@ Use r2modman or place inside of Risk of Rain 2/Bepinex/Plugins/
 
 ## Changelog:
 
+v1.0.5 - StatHooks now check for Buff instead of Component. (HolyDLL compat)
+
 v1.0.4 - Add JellyFish to smallFlyer list. Reorganize config sections (artifact and modifiers values reset). Added some more configs. Level and itemScore based size scaling.
 
 v1.0.3 - Added Artifact of the Giants. Tweak how mod gets default monster scale.

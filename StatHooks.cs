@@ -44,30 +44,26 @@ namespace TPDespair.ZetSizeController
 
 						if (shrink || titan)
 						{
-							SizeData sizeData = self.GetComponent<SizeData>();
-							if (sizeData)
+							if (self.HasBuff(ZetSizeControllerContent.Buffs.ZetMonsterSizeClass))
 							{
-								if (sizeData.sizeClass == SizeClass.Player)
+								if (shrink && Configuration.ShrinkifactMonster.Value)
 								{
-									if (shrink && Configuration.ShrinkifactPlayer.Value)
-									{
-										value *= Configuration.ShrinkifactMovement.Value;
-									}
-									if (titan && Configuration.TitanifactPlayer.Value)
-									{
-										value *= Configuration.TitanifactMovement.Value;
-									}
+									value *= Configuration.ShrinkifactMovement.Value;
 								}
-								else
+								if (titan && Configuration.TitanifactMonster.Value)
 								{
-									if (shrink && Configuration.ShrinkifactMonster.Value)
-									{
-										value *= Configuration.ShrinkifactMovement.Value;
-									}
-									if (titan && Configuration.TitanifactMonster.Value)
-									{
-										value *= Configuration.TitanifactMovement.Value;
-									}
+									value *= Configuration.TitanifactMovement.Value;
+								}
+							}
+							else if (self.HasBuff(ZetSizeControllerContent.Buffs.ZetPlayerSizeClass))
+							{
+								if (shrink && Configuration.ShrinkifactPlayer.Value)
+								{
+									value *= Configuration.ShrinkifactMovement.Value;
+								}
+								if (titan && Configuration.TitanifactPlayer.Value)
+								{
+									value *= Configuration.TitanifactMovement.Value;
 								}
 							}
 						}
@@ -113,30 +109,26 @@ namespace TPDespair.ZetSizeController
 
 						if (shrink || titan)
 						{
-							SizeData sizeData = self.GetComponent<SizeData>();
-							if (sizeData)
+							if (self.HasBuff(ZetSizeControllerContent.Buffs.ZetMonsterSizeClass))
 							{
-								if (sizeData.sizeClass == SizeClass.Player)
+								if (shrink && Configuration.ShrinkifactMonster.Value)
 								{
-									if (shrink && Configuration.ShrinkifactPlayer.Value)
-									{
-										value *= Configuration.ShrinkifactDamage.Value;
-									}
-									if (titan && Configuration.TitanifactPlayer.Value)
-									{
-										value *= Configuration.TitanifactDamage.Value;
-									}
+									value *= Configuration.ShrinkifactDamage.Value;
 								}
-								else
+								if (titan && Configuration.TitanifactMonster.Value)
 								{
-									if (shrink && Configuration.ShrinkifactMonster.Value)
-									{
-										value *= Configuration.ShrinkifactDamage.Value;
-									}
-									if (titan && Configuration.TitanifactMonster.Value)
-									{
-										value *= Configuration.TitanifactDamage.Value;
-									}
+									value *= Configuration.TitanifactDamage.Value;
+								}
+							}
+							else if (self.HasBuff(ZetSizeControllerContent.Buffs.ZetPlayerSizeClass))
+							{
+								if (shrink && Configuration.ShrinkifactPlayer.Value)
+								{
+									value *= Configuration.ShrinkifactDamage.Value;
+								}
+								if (titan && Configuration.TitanifactPlayer.Value)
+								{
+									value *= Configuration.TitanifactDamage.Value;
 								}
 							}
 						}
@@ -182,30 +174,26 @@ namespace TPDespair.ZetSizeController
 
 						if (shrink || titan)
 						{
-							SizeData sizeData = self.GetComponent<SizeData>();
-							if (sizeData)
+							if (self.HasBuff(ZetSizeControllerContent.Buffs.ZetMonsterSizeClass))
 							{
-								if (sizeData.sizeClass == SizeClass.Player)
+								if (shrink && Configuration.ShrinkifactMonster.Value)
 								{
-									if (shrink && Configuration.ShrinkifactPlayer.Value)
-									{
-										value *= Configuration.ShrinkifactHealth.Value;
-									}
-									if (titan && Configuration.TitanifactPlayer.Value)
-									{
-										value *= Configuration.TitanifactHealth.Value;
-									}
+									value *= Configuration.ShrinkifactHealth.Value;
 								}
-								else
+								if (titan && Configuration.TitanifactMonster.Value)
 								{
-									if (shrink && Configuration.ShrinkifactMonster.Value)
-									{
-										value *= Configuration.ShrinkifactHealth.Value;
-									}
-									if (titan && Configuration.TitanifactMonster.Value)
-									{
-										value *= Configuration.TitanifactHealth.Value;
-									}
+									value *= Configuration.TitanifactHealth.Value;
+								}
+							}
+							else if (self.HasBuff(ZetSizeControllerContent.Buffs.ZetPlayerSizeClass))
+							{
+								if (shrink && Configuration.ShrinkifactPlayer.Value)
+								{
+									value *= Configuration.ShrinkifactHealth.Value;
+								}
+								if (titan && Configuration.TitanifactPlayer.Value)
+								{
+									value *= Configuration.TitanifactHealth.Value;
 								}
 							}
 						}

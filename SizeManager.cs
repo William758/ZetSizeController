@@ -263,8 +263,14 @@ namespace TPDespair.ZetSizeController
 
 					if (sizeClass == SizeClass.Player)
 					{
+						body.SetBuffCount(ZetSizeControllerContent.Buffs.ZetPlayerSizeClass.buffIndex, 1);
+
 						Debug.LogWarning("Created Player SizeData : " + sizeData.netId);
 						Debug.LogWarning("-- Height : " + sizeData.height);
+					}
+					else
+					{
+						body.SetBuffCount(ZetSizeControllerContent.Buffs.ZetMonsterSizeClass.buffIndex, 1);
 					}
 				}
 
