@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using BepInEx;
+using BepInEx.Logging;
 using RoR2;
 using RoR2.ContentManagement;
 using System;
@@ -20,11 +21,13 @@ namespace TPDespair.ZetSizeController
 
 	public class ZetSizeControllerPlugin : BaseUnityPlugin
 	{
-		public const string ModVer = "1.0.5";
+		public const string ModVer = "1.1.0";
 		public const string ModName = "ZetSizeController";
 		public const string ModGuid = "com.TPDespair.ZetSizeController";
 
 		public static Dictionary<string, string> LangTokens = new Dictionary<string, string>();
+
+		public static ManualLogSource logger;
 
 
 
@@ -33,6 +36,7 @@ namespace TPDespair.ZetSizeController
 			RoR2Application.isModded = true;
 			NetworkModCompatibilityHelper.networkModList = NetworkModCompatibilityHelper.networkModList.Append(ModGuid + ":" + ModVer);
 
+			logger = this.Logger;
 			Configuration.Init(Config);
 
 			ContentManager.collectContentPackProviders += ContentManager_collectContentPackProviders;
@@ -97,6 +101,18 @@ namespace TPDespair.ZetSizeController
 
 
 
+		public static void LogWarn(object obj)
+		{
+			logger.LogWarning(obj);
+		}
+
+		public static void LogError(object obj)
+		{
+			logger.LogError(obj);
+		}
+
+
+
 		public static Sprite CreateSprite(byte[] resourceBytes, Color fallbackColor)
 		{
 			// Create a temporary texture, then load the texture onto it.
@@ -116,7 +132,7 @@ namespace TPDespair.ZetSizeController
 			}
 			catch (Exception e)
 			{
-				Debug.LogError(e.ToString());
+				LogError(e.ToString());
 				FillTexture(tex, fallbackColor);
 			}
 
@@ -168,6 +184,8 @@ namespace TPDespair.ZetSizeController
 				CreateDroplet(RoR2Content.Items.LunarDagger, transform.position + new Vector3(-5f, 5f, -5f));
 				CreateDroplet(RoR2Content.Items.BarrierOnOverHeal, transform.position + new Vector3(0f, 5f, -7.5f));
 				CreateDroplet(DLC1Content.Items.MushroomVoid, transform.position + new Vector3(5f, 5f, -5f));
+
+				CreateDroplet(RoR2Content.Items.HeadHunter, transform.position + new Vector3(-10f, 5f, 10f));
 			}
 			if (Input.GetKeyDown(KeyCode.F3))
 			{

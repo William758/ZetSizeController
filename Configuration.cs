@@ -71,6 +71,9 @@ namespace TPDespair.ZetSizeController
 		public static ConfigEntry<float> BossSizeIncrease { get; set; }
 		public static ConfigEntry<float> EliteSizeIncrease { get; set; }
 		public static ConfigEntry<float> EliteCountSizeIncrease { get; set; }
+		public static ConfigEntry<float> EliteCountExponent { get; set; }
+		public static ConfigEntry<float> HeadhunterSizeIncrease { get; set; }
+		public static ConfigEntry<float> HeadhunterExponent { get; set; }
 		public static ConfigEntry<float> GlassModifierLimit { get; set; }
 		public static ConfigEntry<float> GlassSizeMult { get; set; }
 		public static ConfigEntry<float> TonicSizeMult { get; set; }
@@ -355,7 +358,19 @@ namespace TPDespair.ZetSizeController
 			);
 			EliteCountSizeIncrease = Config.Bind(
 				"4b-Modifiers - Core", "eliteCountSizeIncrease", 0.1f,
-				"Size increase per elite buff. Value multiplied by SQRT of buff count."
+				"Size increase per elite buff. Value multiplied by EliteCountExponent of buff count."
+			);
+			EliteCountExponent = Config.Bind(
+				"4b-Modifiers - Core", "eliteCountExponent", 0.5f,
+				"Exponent applied to buff count for EliteCountSizeIncrease."
+			);
+			HeadhunterSizeIncrease = Config.Bind(
+				"4b-Modifiers - Core", "headhunterSizeIncrease", 0.1f,
+				"Size increase per elite buff. Value multiplied by HeadhunterExponent of buff count."
+			);
+			HeadhunterExponent = Config.Bind(
+				"4b-Modifiers - Core", "headhunterExponent", 0.5f,
+				"Exponent applied to buff count for HeadhunterSizeIncrease."
 			);
 			GlassModifierLimit = Config.Bind(
 				"4b-Modifiers - Core", "glassEffectLimit", 0.25f,

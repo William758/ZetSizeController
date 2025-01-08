@@ -70,8 +70,11 @@ namespace TPDespair.ZetSizeController
 		private static BodyIndex ClayableTemplarBodyIndex = BodyIndex.None;
 
 		private static BuffIndex ShrinkRayBuff = BuffIndex.None;
+		private static BuffIndex HeadhunterBuff = BuffIndex.None;
 
 		private static ItemTier LunarVoidTier = ItemTier.AssignedAtRuntime;
+
+		private static ItemIndex RelicMassIndex = ItemIndex.None;
 
 		public static Action<CharacterBody, SizeData> onSizeDataCreated;
 
@@ -161,7 +164,7 @@ namespace TPDespair.ZetSizeController
 			RexBodyIndex = BodyCatalog.FindBodyIndex("TreebotBody");
 			ClayableTemplarBodyIndex = BodyCatalog.FindBodyIndex("Templar_Survivor");
 
-			Debug.LogWarning("ZetSizeController - PopulateBodyIndexes : Lesser[" + LesserBodyIndexes.Count + "] Greater[" + GreaterBodyIndexes.Count + "] Champion[" + ChampionBodyIndexes.Count + "]");
+			ZetSizeControllerPlugin.LogWarn("PopulateBodyIndexes : Lesser[" + LesserBodyIndexes.Count + "] Greater[" + GreaterBodyIndexes.Count + "] Champion[" + ChampionBodyIndexes.Count + "]");
 		}
 
 		private static void PopulateIndexes()
@@ -170,14 +173,23 @@ namespace TPDespair.ZetSizeController
 			if (buffIndex != BuffIndex.None)
 			{
 				ShrinkRayBuff = buffIndex;
-				//Debug.LogWarning("ZetSplitifact - ShrinkRayBuff : " + ShrinkRayBuff);
+			}
+			buffIndex = BuffCatalog.FindBuffIndex("ZetHeadHunter");
+			if (buffIndex != BuffIndex.None)
+			{
+				HeadhunterBuff = buffIndex;
+			}
+
+			ItemIndex itemIndex = ItemCatalog.FindItemIndex("RelicOfMass");
+			if (itemIndex != ItemIndex.None)
+			{
+				RelicMassIndex = itemIndex;
 			}
 
 			ItemTierDef itemTierDef = ItemTierCatalog.FindTierDef("VoidLunarTierDef");
 			if (itemTierDef)
 			{
 				LunarVoidTier = itemTierDef.tier;
-				//Debug.LogWarning("ZetSplitifact - LunarVoidTier : " + LunarVoidTier);
 			}
 		}
 
@@ -207,7 +219,7 @@ namespace TPDespair.ZetSizeController
 				{
 					if (sizeData.sizeClass == SizeClass.Player)
 					{
-						Debug.LogWarning("Player Size : " + sizeData.netId + " - " + $"{sizeData.target:0.###}" + " => " + $"{value:0.###}");
+						ZetSizeControllerPlugin.LogWarn("Player Size : " + sizeData.netId + " - " + $"{sizeData.target:0.###}" + " => " + $"{value:0.###}");
 					}
 
 					sizeData.target = value;
@@ -265,8 +277,8 @@ namespace TPDespair.ZetSizeController
 					{
 						body.SetBuffCount(ZetSizeControllerContent.Buffs.ZetPlayerSizeClass.buffIndex, 1);
 
-						Debug.LogWarning("Created Player SizeData : " + sizeData.netId);
-						Debug.LogWarning("-- Height : " + sizeData.height);
+						ZetSizeControllerPlugin.LogWarn("Created Player SizeData : " + sizeData.netId);
+						ZetSizeControllerPlugin.LogWarn("-- Height : " + sizeData.height);
 					}
 					else
 					{
@@ -324,6 +336,19 @@ namespace TPDespair.ZetSizeController
 				{
 					return SizeClass.Champion;
 				}
+			}
+
+			if (self.hullClassification == HullClassification.BeetleQueen)
+			{
+				return SizeClass.Champion;
+			}
+			if (self.hullClassification == HullClassification.Golem)
+			{
+				return SizeClass.Greater;
+			}
+			if (self.hullClassification == HullClassification.Human)
+			{
+				return SizeClass.Lesser;
 			}
 
 			return SizeClass.None;
@@ -418,6 +443,15 @@ namespace TPDespair.ZetSizeController
 					increase += modifier * Configuration.StoneFluxSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
 				}
 
+				if (RelicMassIndex != ItemIndex.None)
+				{
+					count = inventory.GetItemCount(RelicMassIndex);
+					if (count > 0)
+					{
+						increase += modifier * Configuration.StoneFluxSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
+					}
+				}
+
 				count = inventory.GetItemCount(ZetSizeControllerContent.Items.ZetSplitTracker);
 				if (count > 1)
 				{
@@ -442,7 +476,14 @@ namespace TPDespair.ZetSizeController
 			if (count > 0)
 			{
 				increase += modifier * Configuration.EliteSizeIncrease.Value;
-				increase += modifier * Configuration.EliteCountSizeIncrease.Value * Mathf.Min(5f, Mathf.Sqrt(count));
+
+				increase += modifier * Configuration.EliteCountSizeIncrease.Value * Mathf.Pow(count, Configuration.EliteCountExponent.Value);
+			}
+
+			count = self.GetBuffCount(HeadhunterBuff);
+			if (count > 0)
+			{
+				increase += modifier * Configuration.HeadhunterSizeIncrease.Value * Mathf.Pow(count, Configuration.HeadhunterExponent.Value);
 			}
 
 			if (self.HasBuff(RoR2Content.Buffs.TonicBuff))
@@ -648,7 +689,7 @@ namespace TPDespair.ZetSizeController
 							{
 								sizeData.scale = sizeData.target;
 
-								//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning("Player Size : " + sizeData.netId + " - " + sizeData.scale);
+								//if (sizeData.sizeClass == SizeClass.Player) ZetSizeControllerPlugin.LogWarn("Player Size : " + sizeData.netId + " - " + sizeData.scale);
 							}
 							else
 							{
@@ -663,11 +704,11 @@ namespace TPDespair.ZetSizeController
 									sizeData.scale = Mathf.Max(sizeData.scale - delta, sizeData.target);
 								}
 
-								//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning("Player Size : " + sizeData.netId + " - " + sizeData.scale + " => " + sizeData.target);
+								//if (sizeData.sizeClass == SizeClass.Player) ZetSizeControllerPlugin.LogWarn("Player Size : " + sizeData.netId + " - " + sizeData.scale + " => " + sizeData.target);
 							}
 						}
 
-						//if (sizeData.sizeClass == SizeClass.Player) Debug.LogWarning(">> Current Scale - " + self.modelLocator.modelTransform.localScale.x);
+						//if (sizeData.sizeClass == SizeClass.Player) ZetSizeControllerPlugin.LogWarn(">> Current Scale - " + self.modelLocator.modelTransform.localScale.x);
 
 						if (update && HasTransform(self))
 						{
@@ -745,7 +786,7 @@ namespace TPDespair.ZetSizeController
 				{
 					if (sizeData.sizeClass == SizeClass.Player)
 					{
-						Debug.LogWarning("Destroying Player SizeData : " + sizeData.netId);
+						ZetSizeControllerPlugin.LogWarn("Destroying Player SizeData : " + sizeData.netId);
 					}
 
 					UnityEngine.Object.Destroy(sizeData);
@@ -817,7 +858,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - FixPrintController Failed");
+					ZetSizeControllerPlugin.LogWarn("FixPrintController Failed");
 				}
 			};
 		}
@@ -830,15 +871,17 @@ namespace TPDespair.ZetSizeController
 			{
 				ILCursor c = new ILCursor(il);
 
+				const int directionIndex = 13;
+
 				bool found = c.TryGotoNext(
-					x => x.MatchStloc(13)
+					x => x.MatchStloc(directionIndex)// Vector3
 				);
 
 				if (found)
 				{
 					c.Index += 1;
 
-					c.Emit(OpCodes.Ldloc, 13);
+					c.Emit(OpCodes.Ldloc, directionIndex);
 					c.Emit(OpCodes.Ldloc, 1);
 					c.EmitDelegate<Func<Vector3, CameraRigController, Vector3>>((direction, camRig) =>
 					{
@@ -854,11 +897,11 @@ namespace TPDespair.ZetSizeController
 
 						return direction;
 					});
-					c.Emit(OpCodes.Stloc, 13);
+					c.Emit(OpCodes.Stloc, directionIndex);
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - CameraDistanceHook Failed");
+					ZetSizeControllerPlugin.LogWarn("CameraDistanceHook Failed");
 				}
 			};
 		}
@@ -896,7 +939,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - CameraVerticalOffsetHook Failed");
+					ZetSizeControllerPlugin.LogWarn("CameraVerticalOffsetHook Failed");
 				}
 			};
 		}
@@ -909,11 +952,13 @@ namespace TPDespair.ZetSizeController
 			{
 				ILCursor c = new ILCursor(il);
 
+				int rangeIndex = -1;
+
 				bool found = c.TryGotoNext(
 					x => x.MatchLdarg(0),
 					x => x.MatchCallOrCallvirt<InteractionDriver>("get_interactor"),
 					x => x.MatchLdfld<Interactor>("maxInteractionDistance"),
-					x => x.MatchStloc(3)
+					x => x.MatchStloc(out rangeIndex)
 				);
 
 				if (found)
@@ -921,7 +966,7 @@ namespace TPDespair.ZetSizeController
 					c.Index += 4;
 
 					c.Emit(OpCodes.Ldarg, 0);
-					c.Emit(OpCodes.Ldloc, 3);
+					c.Emit(OpCodes.Ldloc, rangeIndex);
 					c.EmitDelegate<Func<InteractionDriver, float, float>>((driver, range) =>
 					{
 						CharacterBody body = driver.characterBody;
@@ -936,11 +981,11 @@ namespace TPDespair.ZetSizeController
 
 						return range;
 					});
-					c.Emit(OpCodes.Stloc, 3);
+					c.Emit(OpCodes.Stloc, rangeIndex);
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - InteractionHook Failed");
+					ZetSizeControllerPlugin.LogWarn("InteractionHook Failed");
 				}
 			};
 		}
@@ -978,7 +1023,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - PickupPickerHook Failed");
+					ZetSizeControllerPlugin.LogWarn("PickupPickerHook Failed");
 				}
 			};
 		}
@@ -1022,7 +1067,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - OverlapAttackPositionHook Failed");
+					ZetSizeControllerPlugin.LogWarn("OverlapAttackPositionHook Failed");
 				}
 			};
 		}
@@ -1064,7 +1109,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - OverlapAttackScaleHook Failed");
+					ZetSizeControllerPlugin.LogWarn("OverlapAttackScaleHook Failed");
 				}
 			};
 		}
@@ -1101,7 +1146,7 @@ namespace TPDespair.ZetSizeController
 
 				bool found = c.TryGotoNext(
 					x => x.MatchLdsfld(typeof(AnimationParameters).GetField("mainRootPlaybackRate")),
-					x => x.MatchLdloc(3)
+					x => x.MatchLdloc(out _)
 				);
 
 				if (found)
@@ -1113,7 +1158,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - AnimationHook:rootMotion Failed");
+					ZetSizeControllerPlugin.LogWarn("AnimationHook:rootMotion Failed");
 				}
 
 				found = c.TryGotoNext(
@@ -1132,7 +1177,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - AnimationHook:walkSpeed Failed");
+					ZetSizeControllerPlugin.LogWarn("AnimationHook:walkSpeed Failed");
 				}
 			};
 		}

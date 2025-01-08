@@ -74,7 +74,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - MovespeedHook Failed");
+					ZetSizeControllerPlugin.LogWarn("MovespeedHook Failed");
 				}
 			};
 		}
@@ -85,8 +85,8 @@ namespace TPDespair.ZetSizeController
 			{
 				ILCursor c = new ILCursor(il);
 
-				const int baseValue = 78;
-				const int multValue = 79;
+				const int baseValue = 88;
+				const int multValue = 89;
 
 				bool found = c.TryGotoNext(
 					x => x.MatchLdloc(baseValue),
@@ -139,7 +139,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - DamageHook Failed");
+					ZetSizeControllerPlugin.LogWarn("DamageHook Failed");
 				}
 			};
 		}
@@ -150,8 +150,8 @@ namespace TPDespair.ZetSizeController
 			{
 				ILCursor c = new ILCursor(il);
 
-				const int baseValue = 62;
-				const int multValue = 63;
+				const int baseValue = 70;
+				const int multValue = 71;
 
 				bool found = c.TryGotoNext(
 					x => x.MatchLdloc(baseValue),
@@ -204,7 +204,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSizeController - HealthHook Failed");
+					ZetSizeControllerPlugin.LogWarn("HealthHook Failed");
 				}
 			};
 		}

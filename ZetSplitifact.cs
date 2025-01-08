@@ -122,7 +122,7 @@ namespace TPDespair.ZetSizeController
 				}
 			}
 
-			Debug.LogWarning("ZetSplitifact - PopulateBodyIndexes : " + SplitableBodyIndexes.Count);
+			ZetSizeControllerPlugin.LogWarn("ZetSplitifact - PopulateBodyIndexes : " + SplitableBodyIndexes.Count);
 		}
 
 
@@ -201,7 +201,7 @@ namespace TPDespair.ZetSizeController
 				}
 				else
 				{
-					Debug.LogWarning("ZetSplitifact - Could not find inventory for body while splitting!");
+					ZetSizeControllerPlugin.LogWarn("ZetSplitifact - Could not find inventory for body while splitting!");
 				}
 
 				// should have been cleared in RollSplitCount
@@ -250,7 +250,7 @@ namespace TPDespair.ZetSizeController
 							}
 							else
 							{
-								Debug.LogWarning("ZetSplitifact - SplitBodies already contains netId : " + spawnBody.netId);
+								ZetSizeControllerPlugin.LogWarn("ZetSplitifact - SplitBodies already contains netId : " + spawnBody.netId);
 							}
 
 							spawnBody.AddTimedBuff(RoR2Content.Buffs.Immune, 1f);
