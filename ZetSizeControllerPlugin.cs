@@ -21,7 +21,7 @@ namespace TPDespair.ZetSizeController
 
 	public class ZetSizeControllerPlugin : BaseUnityPlugin
 	{
-		public const string ModVer = "1.1.0";
+		public const string ModVer = "1.2.0";
 		public const string ModName = "ZetSizeController";
 		public const string ModGuid = "com.TPDespair.ZetSizeController";
 

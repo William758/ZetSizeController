@@ -17,13 +17,13 @@ namespace TPDespair.ZetSizeController
 		Greater,
 		Champion
 	}
-
+	/*
 	public enum ExternalEffect
 	{
 		None = 0,
 		TksatShrinkRay = 1
 	}
-
+	*/
 
 
 	public class SizeData : MonoBehaviour
@@ -44,7 +44,7 @@ namespace TPDespair.ZetSizeController
 		public float target = 1f;
 
 		public float forceUpdate = 0f;
-		public ExternalEffect externalEffect = ExternalEffect.None;
+		//public ExternalEffect externalEffect = ExternalEffect.None;
 
 		public bool ready = false;
 	}
@@ -69,7 +69,7 @@ namespace TPDespair.ZetSizeController
 		private static BodyIndex RexBodyIndex = BodyIndex.None;
 		private static BodyIndex ClayableTemplarBodyIndex = BodyIndex.None;
 
-		private static BuffIndex ShrinkRayBuff = BuffIndex.None;
+		//private static BuffIndex ShrinkRayBuff = BuffIndex.None;
 		private static BuffIndex HeadhunterBuff = BuffIndex.None;
 
 		private static ItemTier LunarVoidTier = ItemTier.AssignedAtRuntime;
@@ -103,6 +103,8 @@ namespace TPDespair.ZetSizeController
 			{
 				InteractionDriverHook();
 				PickupPickerHook();
+				TieredPickupPickerHook();
+				DroneScrapperPickerHook();
 			}
 			if (Configuration.ModifyOverlap.Value)
 			{
@@ -172,7 +174,7 @@ namespace TPDespair.ZetSizeController
 			BuffIndex buffIndex = BuffCatalog.FindBuffIndex("TKSATShrink");
 			if (buffIndex != BuffIndex.None)
 			{
-				ShrinkRayBuff = buffIndex;
+				//ShrinkRayBuff = buffIndex;
 			}
 			buffIndex = BuffCatalog.FindBuffIndex("ZetHeadHunter");
 			if (buffIndex != BuffIndex.None)
@@ -287,7 +289,7 @@ namespace TPDespair.ZetSizeController
 				}
 
 				// wait until onSizeDataCreated is finished
-				// onSizeDataCreated : splitifact rollcount updates inventory which triggers this function again
+				// onSizeDataCreated : stat updates can trigger this function again
 				if (!sizeData.ready) return null;
 
 				return sizeData;
@@ -424,20 +426,20 @@ namespace TPDespair.ZetSizeController
 			{
 				float itemCatLimit = Configuration.CoreItemModifierLimit.Value;
 
-				count = inventory.GetItemCount(RoR2Content.Items.Knurl);
+				count = inventory.GetItemCountEffective(RoR2Content.Items.Knurl);
 				if (count > 0)
 				{
 					increase += modifier * Configuration.KnurlSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
 				}
 
-				count = 10 * self.inventory.GetItemCount(RoR2Content.Items.Pearl);
-				count += 25 * self.inventory.GetItemCount(RoR2Content.Items.ShinyPearl);
+				count = 10 * self.inventory.GetItemCountEffective(RoR2Content.Items.Pearl);
+				count += 25 * self.inventory.GetItemCountEffective(RoR2Content.Items.ShinyPearl);
 				if (count > 0)
 				{
 					increase += modifier * Configuration.PearlSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count / 10f));
 				}
 
-				count = inventory.GetItemCount(DLC1Content.Items.HalfSpeedDoubleHealth);
+				count = inventory.GetItemCountEffective(DLC1Content.Items.HalfSpeedDoubleHealth);
 				if (count > 0)
 				{
 					increase += modifier * Configuration.StoneFluxSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
@@ -445,20 +447,20 @@ namespace TPDespair.ZetSizeController
 
 				if (RelicMassIndex != ItemIndex.None)
 				{
-					count = inventory.GetItemCount(RelicMassIndex);
+					count = inventory.GetItemCountEffective(RelicMassIndex);
 					if (count > 0)
 					{
 						increase += modifier * Configuration.StoneFluxSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
 					}
 				}
 
-				count = inventory.GetItemCount(ZetSizeControllerContent.Items.ZetSplitTracker);
+				count = inventory.GetItemCountPermanent(ZetSizeControllerContent.Items.ZetSplitTracker);
 				if (count > 1)
 				{
 					ignoreExponentMultiplier *= Mathf.Pow(Configuration.SplitifactMult.Value, count - 1);
 				}
 
-				count = inventory.GetItemCount(RoR2Content.Items.LunarDagger);
+				count = inventory.GetItemCountEffective(RoR2Content.Items.LunarDagger);
 				if (count > 0)
 				{
 					ignoreExponentMultiplier *= Mathf.Max(Configuration.GlassModifierLimit.Value, Mathf.Pow(Configuration.GlassSizeMult.Value, count));
@@ -490,12 +492,12 @@ namespace TPDespair.ZetSizeController
 			{
 				ignoreExponentMultiplier *= Configuration.TonicSizeMult.Value;
 			}
-
+			/*
 			if (self.HasBuff(ShrinkRayBuff))
 			{
 				ignoreExponentMultiplier *= 0.65f;
 			}
-
+			*/
 			increase += modifier * GetLevelScaling(sizeData.sizeClass == SizeClass.Player, self.level);
 
 			if (increase < 0f)
@@ -674,7 +676,7 @@ namespace TPDespair.ZetSizeController
 							instant = true;
 						}
 
-						TrackExternalEffects(self, sizeData);
+						//TrackExternalEffects(self, sizeData);
 
 						bool update = false;
 						bool forcedUpdate = sizeData.forceUpdate > 0f;
@@ -728,7 +730,7 @@ namespace TPDespair.ZetSizeController
 				}
 			}
 		}
-
+		/*
 		private static void TrackExternalEffects(CharacterBody self, SizeData sizeData)
 		{
 			ExternalEffect external = ExternalEffect.None;
@@ -745,7 +747,7 @@ namespace TPDespair.ZetSizeController
 				sizeData.forceUpdate = 0.1f;
 			}
 		}
-
+		*/
 		private static void SetSize(CharacterBody body, SizeData sizeData)
 		{
 			bool isRex = body.bodyIndex == RexBodyIndex;
@@ -1028,6 +1030,82 @@ namespace TPDespair.ZetSizeController
 			};
 		}
 
+		private static void TieredPickupPickerHook()
+		{
+			IL.RoR2.TieredPickupPickerController.FixedUpdateServer += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchLdarg(0),
+					x => x.MatchLdfld<TieredPickupPickerController>("cutoffDistance"),
+					x => x.MatchLdarg(0),
+					x => x.MatchLdfld<TieredPickupPickerController>("cutoffDistance"),
+					x => x.MatchMul()
+				);
+
+				if (found)
+				{
+					c.Index += 5;
+
+					c.Emit(OpCodes.Ldloc, 1);
+					c.EmitDelegate<Func<float, CharacterBody, float>>((cutoff, body) =>
+					{
+						SizeData sizeData = body.gameObject.GetComponent<SizeData>();
+						if (sizeData)
+						{
+							float value = sizeData.interactionRange;
+							cutoff *= value * value;
+						}
+
+						return cutoff;
+					});
+				}
+				else
+				{
+					ZetSizeControllerPlugin.LogWarn("TieredPickupPickerHook Failed");
+				}
+			};
+		}
+
+		private static void DroneScrapperPickerHook()
+		{
+			IL.RoR2.DroneScrapperPickerController.FixedUpdateServer += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchLdarg(0),
+					x => x.MatchLdfld<DroneScrapperPickerController>("cutoffDistance"),
+					x => x.MatchLdarg(0),
+					x => x.MatchLdfld<DroneScrapperPickerController>("cutoffDistance"),
+					x => x.MatchMul()
+				);
+
+				if (found)
+				{
+					c.Index += 5;
+
+					c.Emit(OpCodes.Ldloc, 1);
+					c.EmitDelegate<Func<float, CharacterBody, float>>((cutoff, body) =>
+					{
+						SizeData sizeData = body.gameObject.GetComponent<SizeData>();
+						if (sizeData)
+						{
+							float value = sizeData.interactionRange;
+							cutoff *= value * value;
+						}
+
+						return cutoff;
+					});
+				}
+				else
+				{
+					ZetSizeControllerPlugin.LogWarn("DroneScrapperPickerHook Failed");
+				}
+			};
+		}
+
 
 
 		private static void OverlapAttackPositionHook()
@@ -1037,7 +1115,7 @@ namespace TPDespair.ZetSizeController
 				ILCursor c = new ILCursor(il);
 
 				bool found = c.TryGotoNext(
-					x => x.MatchStloc(3)
+					x => x.MatchStloc(4)
 				);
 
 				if (found)
@@ -1079,7 +1157,7 @@ namespace TPDespair.ZetSizeController
 				ILCursor c = new ILCursor(il);
 
 				bool found = c.TryGotoNext(
-					x => x.MatchStloc(4)
+					x => x.MatchStloc(5)
 				);
 
 				if (found)
@@ -1162,22 +1240,47 @@ namespace TPDespair.ZetSizeController
 				}
 
 				found = c.TryGotoNext(
-					x => x.MatchLdsfld(typeof(AnimationParameters).GetField("walkSpeed")),
-					x => x.MatchLdarg(0),
-					x => x.MatchCall<EntityState>("get_characterBody"),
-					x => x.MatchCallvirt<CharacterBody>("get_moveSpeed")
+					x => x.MatchLdsfld(typeof(AnimationParameters).GetField("walkSpeed"))
+				);
+
+				if (!found)
+				{
+					ZetSizeControllerPlugin.LogWarn("AnimationHook:walkSpeed Failed");
+					return;
+				}
+
+				found = c.TryGotoNext(
+					x => x.MatchCallOrCallvirt<EntityState>("get_characterBody"),
+					x => x.MatchCallOrCallvirt<CharacterBody>("get_moveSpeed")
 				);
 
 				if (found)
 				{
-					c.Index += 4;
+					c.Index += 2;
 
 					c.Emit(OpCodes.Ldloc, playbackSpeed);
 					c.Emit(OpCodes.Mul);
 				}
 				else
 				{
-					ZetSizeControllerPlugin.LogWarn("AnimationHook:walkSpeed Failed");
+					ZetSizeControllerPlugin.LogWarn("AnimationHook:Body.moveSpeed Failed");
+				}
+
+				found = c.TryGotoNext(
+					x => x.MatchCallOrCallvirt<EntityState>("get_characterMotor"),
+					x => x.MatchCallOrCallvirt<CharacterMotor>("get_walkSpeed")
+				);
+
+				if (found)
+				{
+					c.Index += 2;
+
+					c.Emit(OpCodes.Ldloc, playbackSpeed);
+					c.Emit(OpCodes.Mul);
+				}
+				else
+				{
+					ZetSizeControllerPlugin.LogWarn("AnimationHook:Motor.walkSpeed Failed");
 				}
 			};
 		}

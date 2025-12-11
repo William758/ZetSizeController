@@ -14,6 +14,8 @@ namespace TPDespair.ZetSizeController
 			MovespeedHook();
 			DamageHook();
 			HealthHook();
+
+			DirectStatHook();
 		}
 
 
@@ -24,19 +26,44 @@ namespace TPDespair.ZetSizeController
 			{
 				ILCursor c = new ILCursor(il);
 
+				int BaseSpeedLocIndex = -1;
+
+				if (c.TryGotoNext(
+					x => x.MatchLdfld<CharacterBody>("baseMoveSpeed"),
+					x => x.MatchLdarg(0),
+					x => x.MatchLdfld<CharacterBody>("levelMoveSpeed")
+				))
+				{
+					if (!c.TryGotoNext(x => x.MatchStloc(out BaseSpeedLocIndex)))
+					{
+						ZetSizeControllerPlugin.LogWarn("MovementSpeedHook Failed - Could not find BaseSpeedLocIndex");
+						return;
+					}
+				}
+
+
+
+				int MultSpeedLocIndex = -1;
+				int DivSpeedLocIndex = -1;
+
 				bool found = c.TryGotoNext(
-					x => x.MatchLdloc(out _),
-					x => x.MatchCallOrCallvirt<CharacterBody>("set_moveSpeed")
+					x => x.MatchLdloc(BaseSpeedLocIndex),
+					x => x.MatchLdloc(out MultSpeedLocIndex),
+					x => x.MatchLdloc(out DivSpeedLocIndex),
+					x => x.MatchDiv(),
+					x => x.MatchMul(),
+					x => x.MatchStloc(BaseSpeedLocIndex)
 				);
 
 				if (found)
 				{
-					c.Index += 2;
+					c.Index += 1;
 
-					c.Emit(OpCodes.Ldarg, 0);// set_moveSpeed
+					c.Emit(OpCodes.Pop);
+
+					// multiplier
 					c.Emit(OpCodes.Ldarg, 0);
-					c.Emit(OpCodes.Ldarg, 0);// get_moveSpeed
-					c.Emit(OpCodes.Call, typeof(CharacterBody).GetMethod("get_moveSpeed"));
+					c.Emit(OpCodes.Ldloc, BaseSpeedLocIndex);
 					c.EmitDelegate<Func<CharacterBody, float, float>>((self, value) =>
 					{
 						bool shrink = ZetShrinkifact.Enabled;
@@ -70,11 +97,13 @@ namespace TPDespair.ZetSizeController
 
 						return value;
 					});
-					c.Emit(OpCodes.Call, typeof(CharacterBody).GetMethod("set_moveSpeed", BindingFlags.Instance | BindingFlags.NonPublic));
+					c.Emit(OpCodes.Stloc, BaseSpeedLocIndex);
+
+					c.Emit(OpCodes.Ldloc, BaseSpeedLocIndex);
 				}
 				else
 				{
-					ZetSizeControllerPlugin.LogWarn("MovespeedHook Failed");
+					ZetSizeControllerPlugin.LogWarn("MovementSpeedHook Failed");
 				}
 			};
 		}
@@ -85,14 +114,30 @@ namespace TPDespair.ZetSizeController
 			{
 				ILCursor c = new ILCursor(il);
 
-				const int baseValue = 88;
-				const int multValue = 89;
+				int BaseDamageLocIndex = -1;
+
+				if (c.TryGotoNext(
+					x => x.MatchLdfld<CharacterBody>("baseDamage"),
+					x => x.MatchLdarg(0),
+					x => x.MatchLdfld<CharacterBody>("levelDamage")
+				))
+				{
+					if (!c.TryGotoNext(x => x.MatchStloc(out BaseDamageLocIndex)))
+					{
+						ZetSizeControllerPlugin.LogWarn("DamageHook Failed - Could not find BaseDamageLocIndex");
+						return;
+					}
+				}
+
+
+
+				int MultDamageLocIndex = -1;
 
 				bool found = c.TryGotoNext(
-					x => x.MatchLdloc(baseValue),
-					x => x.MatchLdloc(multValue),
+					x => x.MatchLdloc(BaseDamageLocIndex),
+					x => x.MatchLdloc(out MultDamageLocIndex),
 					x => x.MatchMul(),
-					x => x.MatchStloc(baseValue)
+					x => x.MatchStloc(BaseDamageLocIndex)
 				);
 
 				if (found)
@@ -101,7 +146,7 @@ namespace TPDespair.ZetSizeController
 
 					// multiplier
 					c.Emit(OpCodes.Ldarg, 0);
-					c.Emit(OpCodes.Ldloc, baseValue);
+					c.Emit(OpCodes.Ldloc, BaseDamageLocIndex);
 					c.EmitDelegate<Func<CharacterBody, float, float>>((self, value) =>
 					{
 						bool shrink = ZetShrinkifact.Enabled;
@@ -135,7 +180,7 @@ namespace TPDespair.ZetSizeController
 
 						return value;
 					});
-					c.Emit(OpCodes.Stloc, baseValue);
+					c.Emit(OpCodes.Stloc, BaseDamageLocIndex);
 				}
 				else
 				{
@@ -150,14 +195,30 @@ namespace TPDespair.ZetSizeController
 			{
 				ILCursor c = new ILCursor(il);
 
-				const int baseValue = 70;
-				const int multValue = 71;
+				int BaseHealthLocIndex = -1;
+
+				if (c.TryGotoNext(
+					x => x.MatchLdfld<CharacterBody>("baseMaxHealth"),
+					x => x.MatchLdarg(0),
+					x => x.MatchLdfld<CharacterBody>("levelMaxHealth")
+				))
+				{
+					if (!c.TryGotoNext(x => x.MatchStloc(out BaseHealthLocIndex)))
+					{
+						ZetSizeControllerPlugin.LogWarn("HealthHook Failed - Could not find BaseHealthLocIndex");
+						return;
+					}
+				}
+
+
+
+				int MultHealthLocIndex = -1;
 
 				bool found = c.TryGotoNext(
-					x => x.MatchLdloc(baseValue),
-					x => x.MatchLdloc(multValue),
+					x => x.MatchLdloc(BaseHealthLocIndex),
+					x => x.MatchLdloc(out MultHealthLocIndex),
 					x => x.MatchMul(),
-					x => x.MatchStloc(baseValue)
+					x => x.MatchStloc(BaseHealthLocIndex)
 				);
 
 				if (found)
@@ -166,7 +227,7 @@ namespace TPDespair.ZetSizeController
 
 					// multiplier
 					c.Emit(OpCodes.Ldarg, 0);
-					c.Emit(OpCodes.Ldloc, baseValue);
+					c.Emit(OpCodes.Ldloc, BaseHealthLocIndex);
 					c.EmitDelegate<Func<CharacterBody, float, float>>((self, value) =>
 					{
 						bool shrink = ZetShrinkifact.Enabled;
@@ -200,11 +261,30 @@ namespace TPDespair.ZetSizeController
 
 						return value;
 					});
-					c.Emit(OpCodes.Stloc, baseValue);
+					c.Emit(OpCodes.Stloc, BaseHealthLocIndex);
 				}
 				else
 				{
 					ZetSizeControllerPlugin.LogWarn("HealthHook Failed");
+				}
+			};
+		}
+
+
+
+		private static void DirectStatHook()
+		{
+			On.RoR2.CharacterBody.RecalculateStats += (orig, self) =>
+			{
+				orig(self);
+
+				if (self)
+				{
+					int count = self.GetBuffCount(ZetSizeControllerContent.Buffs.ZetSplitDefense);
+					if (count > 0)
+					{
+						self.armor += 100f * ((1 << count) - 1);
+					}
 				}
 			};
 		}

@@ -7,16 +7,13 @@ namespace TPDespair.ZetSizeController
 {
 	public static class ZetSplitifact
 	{
-		private static readonly List<string> SplitableBodyNames = new List<string> { "BeetleBody", "BeetleCrystalBody", "ClayBody", "FlyingVerminBody", "HermitCrabBody", "ImpBody", "JellyfishBody", "LemurianBody", "LunarExploderBody", "MiniMushroomBody", "MinorConstructBody", "MoffeinClayManBody", "VerminBody", "VultureBody", "WispBody", "AncientWispBody", "BeetleGuardBody", "BeetleGuardCrystalBody", "BellBody", "BisonBody", "BomberBody", "ClayBruiserBody", "ClayGrenadierBody", "GolemBody", "GreaterWispBody", "LemurianBruiserBody", "LunarGolemBody", "LunarKnightBody", "LunarWispBody", "MajorConstructBody", "NullifierBody", "ParentBody", "RoboBallMiniBody", "VoidJailerBody", "ArchWispBody", "BeetleQueen2Body", "ClayBossBody", "DireseekerBody", "ElectricWormBody", "GrandParentBody", "GravekeeperBody", "ImpBossBody", "MagmaWormBody", "MegaConstructBody", "MoffeinAncientWispBody", "RoboBallBossBody", "SuperRoboBallBossBody", "TitanBody", "VagrantBody", "VoidMegaCrabBody" };
+		private static readonly List<string> SplitableBodyNames = new List<string> { "BeetleBody", "BeetleCrystalBody", "ClayBody", "FlyingVerminBody", "HermitCrabBody", "ImpBody", "JellyfishBody", "LemurianBody", "LunarExploderBody", "MiniMushroomBody", "MinorConstructBody", "MoffeinClayManBody", "VerminBody", "VultureBody", "WispBody", "AncientWispBody", "BeetleGuardBody", "BeetleGuardCrystalBody", "BellBody", "BisonBody", "BomberBody", "ClayBruiserBody", "ClayGrenadierBody", "GolemBody", "GreaterWispBody", "LemurianBruiserBody", "LunarGolemBody", "LunarKnightBody", "LunarWispBody", "MajorConstructBody", "NullifierBody", "ParentBody", "RoboBallMiniBody", "VoidJailerBody", "ArchWispBody", "BeetleQueen2Body", "ClayBossBody", "DireseekerBody", "ElectricWormBody", "GrandParentBody", "GravekeeperBody", "ImpBossBody", "MagmaWormBody", "MegaConstructBody", "MoffeinAncientWispBody", "RoboBallBossBody", "SuperRoboBallBossBody", "TitanBody", "VagrantBody", "VoidMegaCrabBody", "ChildBody", "ScorchlingBody", "HalcyoniteBody", "WorkerUnitBody", "TankerBody" };
 		private static readonly List<BodyIndex> SplitableBodyIndexes = new List<BodyIndex>();
 
-		private static readonly List<string> SmallFlyingBodyNames = new List<string> { "FlyingVerminBody", "JellyfishBody", "VultureBody", "WispBody", "RoboBallMiniBody" };
+		private static readonly List<string> SmallFlyingBodyNames = new List<string> { "FlyingVerminBody", "JellyfishBody", "VultureBody", "WispBody", "RoboBallMiniBody", "TankerBody" };
 		private static readonly List<BodyIndex> SmallFlyingBodyIndexes = new List<BodyIndex>();
 
 		private static readonly List<NetworkInstanceId> SplitBodies = new List<NetworkInstanceId>();
-
-		// count : 0 is uninitialized , 1 is 0 remaining
-		internal static ItemDef TrackerItemDef;
 
 
 
@@ -148,7 +145,7 @@ namespace TPDespair.ZetSizeController
 				Inventory inventory = master.inventory;
 				if (inventory)
 				{
-					int count = inventory.GetItemCount(TrackerItemDef);
+					int count = inventory.GetItemCountPermanent(ZetSizeControllerContent.Items.ZetSplitTracker);
 					if (count > 1)
 					{
 						if (master.IsDeadAndOutOfLivesServer())
@@ -193,10 +190,10 @@ namespace TPDespair.ZetSizeController
 				Inventory inventory = body.inventory;
 				if (inventory)
 				{
-					int splitCount = inventory.GetItemCount(TrackerItemDef);
+					int splitCount = inventory.GetItemCountPermanent(ZetSizeControllerContent.Items.ZetSplitTracker);
 					if (splitCount > 1)
 					{
-						inventory.RemoveItem(TrackerItemDef);
+						inventory.RemoveItemPermanent(ZetSizeControllerContent.Items.ZetSplitTracker);
 					}
 				}
 				else
@@ -253,7 +250,11 @@ namespace TPDespair.ZetSizeController
 								ZetSizeControllerPlugin.LogWarn("ZetSplitifact - SplitBodies already contains netId : " + spawnBody.netId);
 							}
 
-							spawnBody.AddTimedBuff(RoR2Content.Buffs.Immune, 1f);
+							spawnBody.AddTimedBuff(RoR2Content.Buffs.Immune, 0.25f);
+
+							spawnBody.AddTimedBuff(ZetSizeControllerContent.Buffs.ZetSplitDefense, 1f);
+							spawnBody.AddTimedBuff(ZetSizeControllerContent.Buffs.ZetSplitDefense, 0.75f);
+							spawnBody.AddTimedBuff(ZetSizeControllerContent.Buffs.ZetSplitDefense, 0.5f);
 
 							float yForce = 0f;
 
@@ -310,13 +311,13 @@ namespace TPDespair.ZetSizeController
 			if (inventory)
 			{
 				bool isSplitBody = SplitBodies.Contains(body.netId);
-				int count = inventory.GetItemCount(TrackerItemDef);
+				int count = inventory.GetItemCountPermanent(ZetSizeControllerContent.Items.ZetSplitTracker);
 
 				if (!isSplitBody)
 				{
 					if (count > 1)
 					{
-						inventory.RemoveItem(TrackerItemDef, count - 1);
+						inventory.RemoveItemPermanent(ZetSizeControllerContent.Items.ZetSplitTracker, count - 1);
 					}
 					else if (count == 0 && IsBodyEligableForSpliting(body))
 					{
@@ -348,7 +349,7 @@ namespace TPDespair.ZetSizeController
 							if (splitCount > 0)
 							{
 								splitCount = Random.Range(0, splitCount + 1);
-								inventory.GiveItem(TrackerItemDef, splitCount + 1);
+								inventory.GiveItemPermanent(ZetSizeControllerContent.Items.ZetSplitTracker, splitCount + 1);
 							}
 						}
 					}

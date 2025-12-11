@@ -30,6 +30,8 @@ Use r2modman or place inside of Risk of Rain 2/Bepinex/Plugins/
 
 ## Changelog:
 
+v1.2.0 - Fixed for AC.
+
 v1.1.0 - Fixed for SotS.
 
 v1.0.5 - StatHooks now check for Buff instead of Component. (HolyDLL compat)

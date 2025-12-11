@@ -21,8 +21,6 @@ namespace TPDespair.ZetSizeController
 			Items.Create();
 			Buffs.Create();
 
-			ZetSplitifact.TrackerItemDef = Items.ZetSplitTracker;
-
 			contentPack.artifactDefs.Add(Artifacts.artifactDefs.ToArray());
 			contentPack.itemDefs.Add(Items.itemDefs.ToArray());
 			contentPack.buffDefs.Add(Buffs.buffDefs.ToArray());
@@ -119,6 +117,7 @@ namespace TPDespair.ZetSizeController
 		{
 			public static BuffDef ZetPlayerSizeClass;
 			public static BuffDef ZetMonsterSizeClass;
+			public static BuffDef ZetSplitDefense;
 
 			public static List<BuffDef> buffDefs = new List<BuffDef>();
 
@@ -137,6 +136,13 @@ namespace TPDespair.ZetSizeController
 				ZetMonsterSizeClass.isDebuff = false;
 				ZetMonsterSizeClass.isHidden = true;
 				buffDefs.Add(ZetMonsterSizeClass);
+
+				ZetSplitDefense = ScriptableObject.CreateInstance<BuffDef>();
+				ZetSplitDefense.name = "ZetSplitDefense";
+				ZetSplitDefense.canStack = true;
+				ZetSplitDefense.isDebuff = false;
+				ZetSplitDefense.isHidden = true;
+				buffDefs.Add(ZetSplitDefense);
 			}
 		}
 	}
