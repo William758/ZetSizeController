@@ -39,13 +39,13 @@ namespace TPDespair.ZetSizeController
 		private static void EnableEffects()
 		{
 			On.RoR2.CharacterAI.BaseAI.OnBodyDeath += SplitOnBodyDeath;
-			SizeManager.onSizeDataCreated += RollSplitCount;
+			CharacterBody.onBodyStartGlobal += RollSplitCount;
 		}
 
 		private static void DisableEffects()
 		{
 			On.RoR2.CharacterAI.BaseAI.OnBodyDeath -= SplitOnBodyDeath;
-			SizeManager.onSizeDataCreated -= RollSplitCount;
+			CharacterBody.onBodyStartGlobal -= RollSplitCount;
 		}
 
 
@@ -305,7 +305,7 @@ namespace TPDespair.ZetSizeController
 
 
 
-		private static void RollSplitCount(CharacterBody body, SizeData sizeData)
+		private static void RollSplitCount(CharacterBody body)
 		{
 			Inventory inventory = body.inventory;
 			if (inventory)
@@ -325,7 +325,8 @@ namespace TPDespair.ZetSizeController
 						{
 							int splitCount = 0;
 
-							switch (sizeData.sizeClass)
+							SizeClass sizeClass = SizeManager.GetSizeClass(body);
+							switch (sizeClass)
 							{
 								case SizeClass.Lesser:
 									splitCount = Configuration.SplitifactMaxLesser.Value;

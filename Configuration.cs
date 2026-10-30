@@ -4,11 +4,10 @@ namespace TPDespair.ZetSizeController
 {
 	public static class Configuration
 	{
-		public static ConfigEntry<float> SizeChangeRate { get; set; }
+		//public static ConfigEntry<float> SizeChangeRate { get; set; }
 		public static ConfigEntry<bool> IgnoreSizeLimit { get; set; }
 		public static ConfigEntry<bool> IgnoreSizeExponent { get; set; }
 		public static ConfigEntry<float> AbsoluteSizeLimit { get; set; }
-		public static ConfigEntry<bool> ValidateMonsterSize { get; set; }
 
 		public static ConfigEntry<bool> AllowStatHook { get; set; }
 		public static ConfigEntry<bool> ModifyCamera { get; set; }
@@ -68,6 +67,7 @@ namespace TPDespair.ZetSizeController
 		public static ConfigEntry<float> KnurlSizeIncrease { get; set; }
 		public static ConfigEntry<float> PearlSizeIncrease { get; set; }
 		public static ConfigEntry<float> StoneFluxSizeIncrease { get; set; }
+		public static ConfigEntry<float> NectarSizeIncrease { get; set; }
 		public static ConfigEntry<float> BossSizeIncrease { get; set; }
 		public static ConfigEntry<float> EliteSizeIncrease { get; set; }
 		public static ConfigEntry<float> EliteCountSizeIncrease { get; set; }
@@ -98,10 +98,12 @@ namespace TPDespair.ZetSizeController
 
 		internal static void Init(ConfigFile Config)
 		{
+			/*
 			SizeChangeRate = Config.Bind(
 				"1a-General", "sizeChangeRate", 0.25f,
 				"Rate of size change per second. Higher values = faster. 0 is instant."
 			);
+			*/
 			IgnoreSizeLimit = Config.Bind(
 				"1a-General", "ignoreSizeLimit", false,
 				"Set all sizeclass limits to extreme values."
@@ -113,10 +115,6 @@ namespace TPDespair.ZetSizeController
 			AbsoluteSizeLimit = Config.Bind(
 				"1a-General", "absoluteSizeLimit", 4f,
 				"Prevent anything from scaling past value. Overwritten by ignoreSizeLimit."
-			);
-			ValidateMonsterSize = Config.Bind(
-				"1a-General", "validateMonsterSize", true,
-				"Wait a bit until size changes are made for monsters after spawning."
 			);
 
 
@@ -262,8 +260,8 @@ namespace TPDespair.ZetSizeController
 				"Maximum size of players. Higher values can make skill usage on some characters awkward."
 			);
 			PlayerSizeLimitExtendable = Config.Bind(
-				"3a-Size - Player", "playerSizeLimitExtendable", false,
-				"Whether player size limit can be extended by other effects."
+				"3a-Size - Player", "playerSizeLimitExtendable", true,
+				"Whether player size limit is increased by Titanifact if applicable."
 			);
 
 
@@ -334,7 +332,7 @@ namespace TPDespair.ZetSizeController
 
 			CoreItemModifierLimit = Config.Bind(
 				"4b-Modifiers - Core", "coreItemEffectLimit", 5f,
-				"Maximum modifier effect multiplier for : Knurl, Pearls, StoneFlux. 5 = SQRT(25), item effect caps out at 25 items for each core item."
+				"Maximum modifier effect multiplier for : Knurl, Pearls, Nectar, StoneFlux. 5 = SQRT(25), item effect caps out at 25 items for each core item."
 			);
 			KnurlSizeIncrease = Config.Bind(
 				"4b-Modifiers - Core", "knurlSizeIncrease", 0.1f,
@@ -347,6 +345,10 @@ namespace TPDespair.ZetSizeController
 			StoneFluxSizeIncrease = Config.Bind(
 				"4b-Modifiers - Core", "stoneFluxSizeIncrease", 0.2f,
 				"Size increase from Stone Flux Pauldron. Value multiplied by SQRT of item count."
+			);
+			NectarSizeIncrease = Config.Bind(
+				"4b-Modifiers - Core", "nectarSizeIncrease", 0.1f,
+				"Size increase from GrowthNectar. Value multiplied by SQRT of item count."
 			);
 			BossSizeIncrease = Config.Bind(
 				"4b-Modifiers - Core", "bossSizeIncrease", 0.2f,

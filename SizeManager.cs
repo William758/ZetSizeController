@@ -1,9 +1,11 @@
 ﻿using EntityStates;
+using HarmonyLib;
 using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using RoR2;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -16,37 +18,6 @@ namespace TPDespair.ZetSizeController
 		Lesser,
 		Greater,
 		Champion
-	}
-	/*
-	public enum ExternalEffect
-	{
-		None = 0,
-		TksatShrinkRay = 1
-	}
-	*/
-
-
-	public class SizeData : MonoBehaviour
-	{
-		public NetworkInstanceId netId;
-		public SizeClass sizeClass = SizeClass.None;
-
-		public float heightVerticalOffset = 0f;
-		public float interactionRange = 1f;
-		public float playbackSpeed = 1f;
-
-		public Vector3 size;
-		public float height = 0f;
-		public int validation = 0;
-		public bool newData = true;
-
-		public float scale = 1f;
-		public float target = 1f;
-
-		public float forceUpdate = 0f;
-		//public ExternalEffect externalEffect = ExternalEffect.None;
-
-		public bool ready = false;
 	}
 
 
@@ -66,17 +37,10 @@ namespace TPDespair.ZetSizeController
 		private static BodyIndex BeetleCrystalBodyIndex = BodyIndex.None;
 		private static BodyIndex ImpBodyIndex = BodyIndex.None;
 		private static BodyIndex LemurianBodyIndex = BodyIndex.None;
-		private static BodyIndex RexBodyIndex = BodyIndex.None;
-		private static BodyIndex ClayableTemplarBodyIndex = BodyIndex.None;
 
-		//private static BuffIndex ShrinkRayBuff = BuffIndex.None;
 		private static BuffIndex HeadhunterBuff = BuffIndex.None;
-
 		private static ItemTier LunarVoidTier = ItemTier.AssignedAtRuntime;
-
 		private static ItemIndex RelicMassIndex = ItemIndex.None;
-
-		public static Action<CharacterBody, SizeData> onSizeDataCreated;
 
 
 
@@ -85,19 +49,17 @@ namespace TPDespair.ZetSizeController
 			BodyCatalog.availability.CallWhenAvailable(PopulateBodyIndexes);
 			RoR2Application.onLoad += PopulateIndexes;
 
-			RecalculateStatsHook();
-			FixedUpdateHook();
-			OnDestroyHook();
-
-			CharacterBody.onBodyStartGlobal += RecalcSizeData;
-			VehicleSeat.onPassengerExitGlobal += ResizeOnVehicleExit;
-
-			FixPrintController();
-
 			if (Configuration.ModifyCamera.Value)
 			{
 				CameraDistanceHook();
 				CameraVerticalOffsetHook();
+				/*
+				MethodInfo target = AccessTools.Method(typeof(InputBankTest), "get_aimOrigin");
+				if (target != null)
+				{
+					ZetSizeControllerPlugin.harmony.Patch(target, postfix: new HarmonyMethod(typeof(SizeManager), nameof(InputBankAimOriginPostfix)));
+				}
+				*/
 			}
 			if (Configuration.ModifyInteraction.Value)
 			{
@@ -163,20 +125,13 @@ namespace TPDespair.ZetSizeController
 			BeetleCrystalBodyIndex = BodyCatalog.FindBodyIndex("BeetleCrystalBody");
 			ImpBodyIndex = BodyCatalog.FindBodyIndex("ImpBody");
 			LemurianBodyIndex = BodyCatalog.FindBodyIndex("LemurianBody");
-			RexBodyIndex = BodyCatalog.FindBodyIndex("TreebotBody");
-			ClayableTemplarBodyIndex = BodyCatalog.FindBodyIndex("Templar_Survivor");
 
 			ZetSizeControllerPlugin.LogWarn("PopulateBodyIndexes : Lesser[" + LesserBodyIndexes.Count + "] Greater[" + GreaterBodyIndexes.Count + "] Champion[" + ChampionBodyIndexes.Count + "]");
 		}
 
 		private static void PopulateIndexes()
 		{
-			BuffIndex buffIndex = BuffCatalog.FindBuffIndex("TKSATShrink");
-			if (buffIndex != BuffIndex.None)
-			{
-				//ShrinkRayBuff = buffIndex;
-			}
-			buffIndex = BuffCatalog.FindBuffIndex("ZetHeadHunter");
+			BuffIndex buffIndex = BuffCatalog.FindBuffIndex("ZetHeadHunter");
 			if (buffIndex != BuffIndex.None)
 			{
 				HeadhunterBuff = buffIndex;
@@ -197,170 +152,12 @@ namespace TPDespair.ZetSizeController
 
 
 
-		private static void RecalculateStatsHook()
-		{
-			On.RoR2.CharacterBody.RecalculateStats += (orig, self) =>
-			{
-				// create before stats calc for artifact stat effects
-				GetSizeData(self);
-
-				orig(self);
-
-				RecalcSizeData(self);
-			};
-		}
-
-		private static void RecalcSizeData(CharacterBody self)
-		{
-			SizeData sizeData = GetSizeData(self);
-			if (sizeData)
-			{
-				float value = GetCharacterScale(self, sizeData);
-
-				if (sizeData.target != value)
-				{
-					if (sizeData.sizeClass == SizeClass.Player)
-					{
-						ZetSizeControllerPlugin.LogWarn("Player Size : " + sizeData.netId + " - " + $"{sizeData.target:0.###}" + " => " + $"{value:0.###}");
-					}
-
-					sizeData.target = value;
-				}
-
-				if (sizeData.newData)
-				{
-					sizeData.newData = false;
-
-					UpdateSize(self, true);
-				}
-			}
-		}
-
-		private static SizeData GetSizeData(CharacterBody body)
-		{
-			// force masterObject assignment by reading it
-			if (body && body.masterObject)
-			{
-				SizeData sizeData = body.gameObject.GetComponent<SizeData>();
-
-				if (!sizeData)
-				{
-					if (!HasTransform(body)) return null;
-					if (!ValidateScale(body)) return null;
-
-					SizeClass sizeClass = GetSizeClass(body);
-					if (sizeClass == SizeClass.None) return null;
-
-					sizeData = body.gameObject.AddComponent<SizeData>();
-					sizeData.netId = body.netId;
-					sizeData.size = body.modelLocator.modelTransform.localScale;
-					sizeData.height = Mathf.Abs(body.corePosition.y - body.footPosition.y) * 2f;
-					sizeData.sizeClass = sizeClass;
-
-					if (sizeClass != SizeClass.Player && Configuration.ValidateMonsterSize.Value)
-					{
-						// 2 fixedupdate of waiting , 1 fixedupdate instant update size
-						sizeData.validation = 3;
-					}
-
-					sizeData.newData = true;
-
-					Action<CharacterBody, SizeData> action = onSizeDataCreated;
-					if (action != null)
-					{
-						#pragma warning disable IDE1005 // Delegate invocation can be simplified.
-						action(body, sizeData);
-						#pragma warning restore IDE1005 // Delegate invocation can be simplified.
-					}
-
-					sizeData.ready = true;
-
-					if (sizeClass == SizeClass.Player)
-					{
-						body.SetBuffCount(ZetSizeControllerContent.Buffs.ZetPlayerSizeClass.buffIndex, 1);
-
-						ZetSizeControllerPlugin.LogWarn("Created Player SizeData : " + sizeData.netId);
-						ZetSizeControllerPlugin.LogWarn("-- Height : " + sizeData.height);
-					}
-					else
-					{
-						body.SetBuffCount(ZetSizeControllerContent.Buffs.ZetMonsterSizeClass.buffIndex, 1);
-					}
-				}
-
-				// wait until onSizeDataCreated is finished
-				// onSizeDataCreated : stat updates can trigger this function again
-				if (!sizeData.ready) return null;
-
-				return sizeData;
-			}
-
-			return null;
-		}
-
-		private static bool HasTransform(CharacterBody self)
-		{
-			return self.modelLocator && self.modelLocator.modelTransform;
-		}
-
-		private static bool ValidateScale(CharacterBody self)
-		{
-			if (self.bodyIndex == RexBodyIndex)
-			{
-				if (Mathf.Abs(self.modelLocator.modelTransform.localScale.x - 0.75f) >= 0.01f) return false;
-			}
-
-			if (self.bodyIndex == ClayableTemplarBodyIndex)
-			{
-				if (Mathf.Abs(self.modelLocator.modelTransform.localScale.x - 0.9f) >= 0.01f) return false;
-			}
-
-			return true;
-		}
-
-		private static SizeClass GetSizeClass(CharacterBody self)
-		{
-			if (self.isPlayerControlled)
-			{
-				return SizeClass.Player;
-			}
-			else
-			{
-				if (LesserBodyIndexes.Contains(self.bodyIndex))
-				{
-					return SizeClass.Lesser;
-				}
-				if (GreaterBodyIndexes.Contains(self.bodyIndex))
-				{
-					return SizeClass.Greater;
-				}
-				if (ChampionBodyIndexes.Contains(self.bodyIndex))
-				{
-					return SizeClass.Champion;
-				}
-			}
-
-			if (self.hullClassification == HullClassification.BeetleQueen)
-			{
-				return SizeClass.Champion;
-			}
-			if (self.hullClassification == HullClassification.Golem)
-			{
-				return SizeClass.Greater;
-			}
-			if (self.hullClassification == HullClassification.Human)
-			{
-				return SizeClass.Lesser;
-			}
-
-			return SizeClass.None;
-		}
-
-		private static float GetCharacterScale(CharacterBody self, SizeData sizeData)
+		public static float GetScaleMult(CharacterBody body)
 		{
 			float increase, multiplier, exponent, maximum, minimum;
 
-			switch (sizeData.sizeClass)
+			SizeClass sizeClass = GetSizeClass(body);
+			switch (sizeClass)
 			{
 				case SizeClass.Player:
 					{
@@ -421,7 +218,7 @@ namespace TPDespair.ZetSizeController
 			float modifier = Configuration.ModifierMult.Value;
 
 			int count;
-			Inventory inventory = self.inventory;
+			Inventory inventory = body.inventory;
 			if (inventory)
 			{
 				float itemCatLimit = Configuration.CoreItemModifierLimit.Value;
@@ -432,8 +229,8 @@ namespace TPDespair.ZetSizeController
 					increase += modifier * Configuration.KnurlSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
 				}
 
-				count = 10 * self.inventory.GetItemCountEffective(RoR2Content.Items.Pearl);
-				count += 25 * self.inventory.GetItemCountEffective(RoR2Content.Items.ShinyPearl);
+				count = 10 * inventory.GetItemCountEffective(RoR2Content.Items.Pearl);
+				count += 25 * inventory.GetItemCountEffective(RoR2Content.Items.ShinyPearl);
 				if (count > 0)
 				{
 					increase += modifier * Configuration.PearlSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count / 10f));
@@ -445,6 +242,12 @@ namespace TPDespair.ZetSizeController
 					increase += modifier * Configuration.StoneFluxSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
 				}
 
+				count = inventory.GetItemCountEffective(DLC2Content.Items.BoostAllStats);
+				if (count > 0)
+				{
+					increase += modifier * Configuration.NectarSizeIncrease.Value * Mathf.Min(itemCatLimit, Mathf.Sqrt(count));
+				}
+
 				if (RelicMassIndex != ItemIndex.None)
 				{
 					count = inventory.GetItemCountEffective(RelicMassIndex);
@@ -454,7 +257,7 @@ namespace TPDespair.ZetSizeController
 					}
 				}
 
-				count = inventory.GetItemCountPermanent(ZetSizeControllerContent.Items.ZetSplitTracker);
+				count = inventory.GetItemCountEffective(ZetSizeControllerContent.Items.ZetSplitTracker);
 				if (count > 1)
 				{
 					ignoreExponentMultiplier *= Mathf.Pow(Configuration.SplitifactMult.Value, count - 1);
@@ -469,12 +272,12 @@ namespace TPDespair.ZetSizeController
 				increase += modifier * GetItemScoreScaling(inventory);
 			}
 
-			if (self.isBoss)
+			if (body.isBoss)
 			{
 				increase += modifier * Configuration.BossSizeIncrease.Value;
 			}
 
-			count = self.eliteBuffCount;
+			count = body.eliteBuffCount;
 			if (count > 0)
 			{
 				increase += modifier * Configuration.EliteSizeIncrease.Value;
@@ -482,23 +285,18 @@ namespace TPDespair.ZetSizeController
 				increase += modifier * Configuration.EliteCountSizeIncrease.Value * Mathf.Pow(count, Configuration.EliteCountExponent.Value);
 			}
 
-			count = self.GetBuffCount(HeadhunterBuff);
+			count = body.GetBuffCount(HeadhunterBuff);
 			if (count > 0)
 			{
 				increase += modifier * Configuration.HeadhunterSizeIncrease.Value * Mathf.Pow(count, Configuration.HeadhunterExponent.Value);
 			}
 
-			if (self.HasBuff(RoR2Content.Buffs.TonicBuff))
+			if (body.HasBuff(RoR2Content.Buffs.TonicBuff))
 			{
 				ignoreExponentMultiplier *= Configuration.TonicSizeMult.Value;
 			}
-			/*
-			if (self.HasBuff(ShrinkRayBuff))
-			{
-				ignoreExponentMultiplier *= 0.65f;
-			}
-			*/
-			increase += modifier * GetLevelScaling(sizeData.sizeClass == SizeClass.Player, self.level);
+
+			increase += modifier * GetLevelScaling(sizeClass == SizeClass.Player, body.level);
 
 			if (increase < 0f)
 			{
@@ -514,7 +312,7 @@ namespace TPDespair.ZetSizeController
 
 			if (ZetShrinkifact.Enabled)
 			{
-				if (sizeData.sizeClass == SizeClass.Player)
+				if (sizeClass == SizeClass.Player)
 				{
 					if (Configuration.ShrinkifactPlayer.Value)
 					{
@@ -540,7 +338,7 @@ namespace TPDespair.ZetSizeController
 
 			if (ZetTitanifact.Enabled)
 			{
-				if (sizeData.sizeClass == SizeClass.Player)
+				if (sizeClass == SizeClass.Player)
 				{
 					if (Configuration.TitanifactPlayer.Value)
 					{
@@ -646,223 +444,47 @@ namespace TPDespair.ZetSizeController
 
 
 
-		private static void FixedUpdateHook()
+		public static float GetInteractionRangeMult(CharacterBody body)
 		{
-			On.RoR2.CharacterBody.FixedUpdate += (orig, self) =>
-			{
-				orig(self);
-
-				UpdateSize(self, false);
-			};
+			return 1f + Mathf.Max(0f, body.currentScale - 1f) / 2f;
 		}
 
-		private static void UpdateSize(CharacterBody self, bool instant)
+		public static SizeClass GetSizeClass(CharacterBody body)
 		{
-			if (self)
+			if (body.isPlayerControlled)
 			{
-				SizeData sizeData = self.gameObject.GetComponent<SizeData>();
-				if (sizeData)
+				return SizeClass.Player;
+			}
+			else
+			{
+				if (LesserBodyIndexes.Contains(body.bodyIndex))
 				{
-					float deltaTime = Time.fixedDeltaTime;
-					bool validating = Configuration.ValidateMonsterSize.Value;
-					bool isPlayer = sizeData.sizeClass == SizeClass.Player;
-
-					if (!validating || isPlayer || sizeData.validation <= 1)
-					{
-						if (validating && !isPlayer && sizeData.validation == 1)
-						{
-							sizeData.size = self.modelLocator.modelTransform.localScale;
-
-							instant = true;
-						}
-
-						//TrackExternalEffects(self, sizeData);
-
-						bool update = false;
-						bool forcedUpdate = sizeData.forceUpdate > 0f;
-
-						if (forcedUpdate || sizeData.scale != sizeData.target)
-						{
-							update = true;
-
-							float rate = Configuration.SizeChangeRate.Value;
-
-							if (instant || forcedUpdate || rate <= 0f)
-							{
-								sizeData.scale = sizeData.target;
-
-								//if (sizeData.sizeClass == SizeClass.Player) ZetSizeControllerPlugin.LogWarn("Player Size : " + sizeData.netId + " - " + sizeData.scale);
-							}
-							else
-							{
-								float delta = deltaTime * sizeData.scale * rate;
-
-								if (sizeData.scale < sizeData.target)
-								{
-									sizeData.scale = Mathf.Min(sizeData.scale + delta, sizeData.target);
-								}
-								else
-								{
-									sizeData.scale = Mathf.Max(sizeData.scale - delta, sizeData.target);
-								}
-
-								//if (sizeData.sizeClass == SizeClass.Player) ZetSizeControllerPlugin.LogWarn("Player Size : " + sizeData.netId + " - " + sizeData.scale + " => " + sizeData.target);
-							}
-						}
-
-						//if (sizeData.sizeClass == SizeClass.Player) ZetSizeControllerPlugin.LogWarn(">> Current Scale - " + self.modelLocator.modelTransform.localScale.x);
-
-						if (update && HasTransform(self))
-						{
-							SetSize(self, sizeData);
-						}
-
-						if (sizeData.forceUpdate > 0f)
-						{
-							sizeData.forceUpdate = Mathf.Max(0f, sizeData.forceUpdate - deltaTime);
-						}
-					}
-
-					if (sizeData.validation > 0)
-					{
-						sizeData.validation--;
-					}
+					return SizeClass.Lesser;
+				}
+				if (GreaterBodyIndexes.Contains(body.bodyIndex))
+				{
+					return SizeClass.Greater;
+				}
+				if (ChampionBodyIndexes.Contains(body.bodyIndex))
+				{
+					return SizeClass.Champion;
 				}
 			}
-		}
-		/*
-		private static void TrackExternalEffects(CharacterBody self, SizeData sizeData)
-		{
-			ExternalEffect external = ExternalEffect.None;
 
-			if (self.HasBuff(ShrinkRayBuff))
+			if (body.hullClassification == HullClassification.BeetleQueen)
 			{
-				external |= ExternalEffect.TksatShrinkRay;
+				return SizeClass.Champion;
+			}
+			if (body.hullClassification == HullClassification.Golem)
+			{
+				return SizeClass.Greater;
+			}
+			if (body.hullClassification == HullClassification.Human)
+			{
+				return SizeClass.Lesser;
 			}
 
-			if (sizeData.externalEffect != external)
-			{
-				sizeData.externalEffect = external;
-
-				sizeData.forceUpdate = 0.1f;
-			}
-		}
-		*/
-		private static void SetSize(CharacterBody body, SizeData sizeData)
-		{
-			bool isRex = body.bodyIndex == RexBodyIndex;
-
-			Vector3 size = sizeData.size;
-			float scale = sizeData.scale;
-
-			body.modelLocator.modelTransform.localScale = new Vector3(size.x * scale, size.y * scale, size.z * scale);
-
-			float vho = (sizeData.height / 2f) * (scale - 1f);
-			if (isRex) vho *= 1.75f;
-			sizeData.heightVerticalOffset = vho;
-
-			sizeData.playbackSpeed = Mathf.Clamp(1f / scale, 0.125f, 4f);
-
-			float divisor = isRex ? 0.4f : 2f;
-			sizeData.interactionRange = 1f + Mathf.Max(0f, scale - 1f) / divisor;
-		}
-
-
-
-		private static void OnDestroyHook()
-		{
-			On.RoR2.CharacterBody.OnDestroy += (orig, self) =>
-			{
-				DestroySizeData(self);
-
-				orig(self);
-			};
-		}
-
-		private static void DestroySizeData(CharacterBody self)
-		{
-			if (self)
-			{
-				SizeData sizeData = self.gameObject.GetComponent<SizeData>();
-				if (sizeData)
-				{
-					if (sizeData.sizeClass == SizeClass.Player)
-					{
-						ZetSizeControllerPlugin.LogWarn("Destroying Player SizeData : " + sizeData.netId);
-					}
-
-					UnityEngine.Object.Destroy(sizeData);
-				}
-			}
-		}
-
-
-
-		private static void ResizeOnVehicleExit(VehicleSeat seat, GameObject gameObject)
-		{
-			CharacterBody body = gameObject.GetComponent<CharacterBody>();
-			if (body)
-			{
-				SizeData sizeData = gameObject.GetComponent<SizeData>();
-				if (sizeData)
-				{
-					sizeData.scale = sizeData.target - 0.01f;
-
-					UpdateSize(body, true);
-				}
-			}
-		}
-
-
-
-		private static void FixPrintController()
-		{
-			IL.RoR2.PrintController.SetPrintThreshold += (il) =>
-			{
-				ILCursor c = new ILCursor(il);
-
-				bool found = c.TryGotoNext(
-					x => x.MatchLdfld<PrintController>("maxPrintHeight")
-				);
-
-				if (found)
-				{
-					c.Index += 1;
-
-					c.Emit(OpCodes.Ldarg, 0);
-					c.Emit(OpCodes.Ldarg, 1);
-					c.EmitDelegate<Func<PrintController, float, float>>((printController, sample) =>
-					{
-						CharacterModel model = printController.characterModel;
-						if (model)
-						{
-							CharacterBody body = model.body;
-							if (body)
-							{
-								if (body.bodyIndex == ClayableTemplarBodyIndex)
-								{
-									return 1f;
-								}
-
-								if (sample >= 1f) return 100f;
-
-								SizeData sizeData = body.gameObject.GetComponent<SizeData>();
-								if (sizeData)
-								{
-									return Mathf.Max(1f, sizeData.scale);
-								}
-							}
-						}
-
-						return 1f;
-					});
-					c.Emit(OpCodes.Mul);
-				}
-				else
-				{
-					ZetSizeControllerPlugin.LogWarn("FixPrintController Failed");
-				}
-			};
+			return SizeClass.None;
 		}
 
 
@@ -890,11 +512,7 @@ namespace TPDespair.ZetSizeController
 						CharacterBody body = camRig.targetBody;
 						if (body)
 						{
-							SizeData sizeData = body.gameObject.GetComponent<SizeData>();
-							if (sizeData)
-							{
-								return direction * sizeData.scale;
-							}
+							return direction * body.currentScale;
 						}
 
 						return direction;
@@ -929,11 +547,13 @@ namespace TPDespair.ZetSizeController
 						CharacterBody body = camRig.targetBody;
 						if (body)
 						{
-							SizeData sizeData = body.gameObject.GetComponent<SizeData>();
-							if (sizeData)
-							{
-								return (vertical * sizeData.scale) + sizeData.heightVerticalOffset;
-							}
+							float currentScale = body.currentScale;
+
+							float halfHeight = Mathf.Abs(body.corePosition.y - body.footPosition.y);
+							float originalHalfHeight = halfHeight / currentScale;
+							float heightVerticalOffset = originalHalfHeight * (currentScale - 1f);
+
+							return (vertical * currentScale) + heightVerticalOffset;
 						}
 
 						return vertical;
@@ -945,7 +565,22 @@ namespace TPDespair.ZetSizeController
 				}
 			};
 		}
+		/*
+		private static void InputBankAimOriginPostfix(InputBankTest __instance, ref Vector3 __result)
+		{
+			CharacterBody body = __instance.characterBody;
+			if (body)
+			{
+				float currentScale = body.currentScale;
 
+				float halfHeight = Mathf.Abs(body.corePosition.y - body.footPosition.y);
+				float originalHalfHeight = halfHeight / currentScale;
+				float heightVerticalOffset = originalHalfHeight * (currentScale - 1f);
+
+				__result = new Vector3(__result.x, __result.y + heightVerticalOffset, __result.z);
+			}
+		}
+		*/
 
 
 		private static void InteractionDriverHook()
@@ -974,11 +609,7 @@ namespace TPDespair.ZetSizeController
 						CharacterBody body = driver.characterBody;
 						if (body)
 						{
-							SizeData sizeData = body.gameObject.GetComponent<SizeData>();
-							if (sizeData)
-							{
-								range *= sizeData.interactionRange;
-							}
+							range *= GetInteractionRangeMult(body);
 						}
 
 						return range;
@@ -1013,10 +644,9 @@ namespace TPDespair.ZetSizeController
 					c.Emit(OpCodes.Ldloc, 1);
 					c.EmitDelegate<Func<float, CharacterBody, float>>((cutoff, body) =>
 					{
-						SizeData sizeData = body.gameObject.GetComponent<SizeData>();
-						if (sizeData)
+						if (body)
 						{
-							float value = sizeData.interactionRange;
+							float value = GetInteractionRangeMult(body);
 							cutoff *= value * value;
 						}
 
@@ -1051,10 +681,9 @@ namespace TPDespair.ZetSizeController
 					c.Emit(OpCodes.Ldloc, 1);
 					c.EmitDelegate<Func<float, CharacterBody, float>>((cutoff, body) =>
 					{
-						SizeData sizeData = body.gameObject.GetComponent<SizeData>();
-						if (sizeData)
+						if (body)
 						{
-							float value = sizeData.interactionRange;
+							float value = GetInteractionRangeMult(body);
 							cutoff *= value * value;
 						}
 
@@ -1089,10 +718,9 @@ namespace TPDespair.ZetSizeController
 					c.Emit(OpCodes.Ldloc, 1);
 					c.EmitDelegate<Func<float, CharacterBody, float>>((cutoff, body) =>
 					{
-						SizeData sizeData = body.gameObject.GetComponent<SizeData>();
-						if (sizeData)
+						if (body)
 						{
-							float value = sizeData.interactionRange;
+							float value = GetInteractionRangeMult(body);
 							cutoff *= value * value;
 						}
 
@@ -1211,17 +839,15 @@ namespace TPDespair.ZetSizeController
 					CharacterBody body = entityState.characterBody;
 					if (body)
 					{
-						SizeData sizeData = body.GetComponent<SizeData>();
-						if (sizeData)
-						{
-							return sizeData.playbackSpeed;
-						}
+						return Mathf.Clamp(1f / body.currentScale, 0.125f, 4f);
 					}
 
 					return 1f;
 				});
 				c.Emit(OpCodes.Stloc, playbackSpeed);
 
+
+				/*
 				bool found = c.TryGotoNext(
 					x => x.MatchLdsfld(typeof(AnimationParameters).GetField("mainRootPlaybackRate")),
 					x => x.MatchLdloc(out _)
@@ -1238,8 +864,10 @@ namespace TPDespair.ZetSizeController
 				{
 					ZetSizeControllerPlugin.LogWarn("AnimationHook:rootMotion Failed");
 				}
+				*/
 
-				found = c.TryGotoNext(
+
+				bool found = c.TryGotoNext(
 					x => x.MatchLdsfld(typeof(AnimationParameters).GetField("walkSpeed"))
 				);
 

@@ -14,6 +14,7 @@ namespace TPDespair.ZetSizeController
 			MovespeedHook();
 			DamageHook();
 			HealthHook();
+			ScaleHook();
 
 			DirectStatHook();
 		}
@@ -94,7 +95,17 @@ namespace TPDespair.ZetSizeController
 								}
 							}
 						}
-
+						/*
+						Inventory inventory = self.inventory;
+						if (inventory)
+						{
+							int count = inventory.GetItemCountEffective(DLC1Content.Items.HalfSpeedDoubleHealth);
+							if (count > 0)
+							{
+								value *= Mathf.Pow(1.2f, count);
+							}
+						}
+						*/
 						return value;
 					});
 					c.Emit(OpCodes.Stloc, BaseSpeedLocIndex);
@@ -266,6 +277,27 @@ namespace TPDespair.ZetSizeController
 				else
 				{
 					ZetSizeControllerPlugin.LogWarn("HealthHook Failed");
+				}
+			};
+		}
+
+		private static void ScaleHook()
+		{
+			IL.RoR2.CharacterBody.RecalculateStats += (il) =>
+			{
+				ILCursor c = new ILCursor(il);
+
+				bool found = c.TryGotoNext(
+					x => x.MatchCallOrCallvirt<CharacterBody>("set_desiredScale")
+				);
+
+				if (found)
+				{
+					c.Emit(OpCodes.Ldarg, 0);
+					c.EmitDelegate<Func<float, CharacterBody, float>>((value, self) =>
+					{
+						return value * SizeManager.GetScaleMult(self);
+					});
 				}
 			};
 		}

@@ -9,6 +9,8 @@ using System.Collections.Generic;
 
 using System.Security;
 using System.Security.Permissions;
+using MonoMod.RuntimeDetour;
+using HarmonyLib;
 
 [module: UnverifiableCode]
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -21,12 +23,13 @@ namespace TPDespair.ZetSizeController
 
 	public class ZetSizeControllerPlugin : BaseUnityPlugin
 	{
-		public const string ModVer = "1.2.0";
+		public const string ModVer = "1.3.0";
 		public const string ModName = "ZetSizeController";
 		public const string ModGuid = "com.TPDespair.ZetSizeController";
 
 		public static Dictionary<string, string> LangTokens = new Dictionary<string, string>();
 
+		//public static Harmony harmony;
 		public static ManualLogSource logger;
 
 
@@ -35,6 +38,8 @@ namespace TPDespair.ZetSizeController
 		{
 			RoR2Application.isModded = true;
 			NetworkModCompatibilityHelper.networkModList = NetworkModCompatibilityHelper.networkModList.Append(ModGuid + ":" + ModVer);
+
+			//harmony = new Harmony(ModGuid);
 
 			logger = this.Logger;
 			Configuration.Init(Config);
@@ -191,11 +196,11 @@ namespace TPDespair.ZetSizeController
 			{
 				var transform = PlayerCharacterMasterController.instances[0].master.GetBodyObject().transform;
 
-				ItemIndex itemIndex = ItemCatalog.FindItemIndex("TKSATShrinkRay");
-				if (itemIndex != ItemIndex.None)
-				{
-					CreateDroplet(ItemCatalog.GetItemDef(itemIndex), transform.position + new Vector3(-5f, 5f, 5f));
-				}
+				CreateDroplet(RoR2Content.Items.Knurl, transform.position + new Vector3(0f, 5f, 7.5f));
+				CreateDroplet(RoR2Content.Items.ShinyPearl, transform.position + new Vector3(0f, 5f, 7.5f));
+
+				CreateDroplet(RoR2Content.Items.Hoof, transform.position + new Vector3(0f, 5f, -7.5f));
+				CreateDroplet(RoR2Content.Items.Hoof, transform.position + new Vector3(5f, 5f, -5f));
 			}
 		}
 
